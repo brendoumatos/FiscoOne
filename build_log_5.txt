@@ -1,0 +1,10 @@
+
+> FiscoOne@0.0.0 build
+> tsc -b && vite build
+
+src/components/dashboard/FinancialReadinessWidget.tsx(16,9): error TS6133: 'title' is declared but its value is never read.
+src/components/dashboard/FiscalTimeline.tsx(3,36): error TS2307: Cannot find module '@/types/timeline' or its corresponding type declarations.
+src/contexts/SubscriptionContext.tsx(4,39): error TS2307: Cannot find module '@/types/subscription' or its corresponding type declarations.
+src/pages/dashboard/index.tsx(21,1): error TS6133: 'PricingInsightWidget' is declared but its value is never read.
+src/pages/dashboard/marketplace/index.tsx(3,30): error TS1484: 'Service' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.
+src/pages/partners/PartnerMarketplace.tsx(6,1): error TS6192: All imports in import declaration are unused.

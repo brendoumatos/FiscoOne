@@ -1,0 +1,29 @@
+
+> FiscoOne@0.0.0 build
+> tsc -b && vite build
+
+src/components/dashboard/FinancialReadinessWidget.tsx(16,9): error TS6133: 'title' is declared but its value is never read.
+src/components/dashboard/FiscalTimeline.tsx(3,10): error TS1484: 'TimelineEvent' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.
+src/components/dashboard/FiscalTimeline.tsx(4,20): error TS6133: 'CheckCircle' is declared but its value is never read.
+src/components/dashboard/PricingInsightWidget.tsx(5,10): error TS6133: 'Lightbulb' is declared but its value is never read.
+src/contexts/BrandingContext.tsx(2,29): error TS1484: 'BrandingSettings' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.
+src/contexts/BrandingContext.tsx(29,31): error TS2339: Property 'isDefault' does not exist on type 'BrandingSettings'.
+src/contexts/SubscriptionContext.tsx(3,31): error TS1484: 'SubscriptionData' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.
+src/pages/accountant/ClientsList.tsx(16,36): error TS2339: Property 'getClients' does not exist on type '{ getPublicBranding(domain: string): Promise<BrandingSettings | null>; updateBranding(data: any): Promise<any>; }'.
+src/pages/accountant/ClientsList.tsx(52,42): error TS2339: Property 'map' does not exist on type '{}'.
+src/pages/accountant/ClientsList.tsx(52,47): error TS7006: Parameter 'client' implicitly has an 'any' type.
+src/pages/dashboard/index.tsx(21,1): error TS6133: 'PricingInsightWidget' is declared but its value is never read.
+src/pages/dashboard/marketplace/index.tsx(3,30): error TS1484: 'Service' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.
+src/pages/landing/LandingPage.tsx(3,107): error TS6133: 'Users' is declared but its value is never read.
+src/pages/landing/LandingPage.tsx(3,121): error TS6133: 'TrendingUp' is declared but its value is never read.
+src/pages/landing/LandingPage.tsx(3,153): error TS6133: 'Play' is declared but its value is never read.
+src/pages/landing/LandingPage.tsx(393,38): error TS2552: Cannot find name 'CheckCircle2'. Did you mean 'CheckCircle'?
+src/pages/landing/LandingPage.tsx(397,38): error TS2552: Cannot find name 'CheckCircle2'. Did you mean 'CheckCircle'?
+src/pages/landing/LandingPage.tsx(420,38): error TS2552: Cannot find name 'CheckCircle2'. Did you mean 'CheckCircle'?
+src/pages/landing/LandingPage.tsx(424,38): error TS2552: Cannot find name 'CheckCircle2'. Did you mean 'CheckCircle'?
+src/pages/landing/LandingPage.tsx(428,38): error TS2552: Cannot find name 'CheckCircle2'. Did you mean 'CheckCircle'?
+src/pages/landing/LandingPage.tsx(458,38): error TS2552: Cannot find name 'CheckCircle2'. Did you mean 'CheckCircle'?
+src/pages/landing/LandingPage.tsx(462,38): error TS2552: Cannot find name 'CheckCircle2'. Did you mean 'CheckCircle'?
+src/pages/landing/LandingPage.tsx(466,38): error TS2552: Cannot find name 'CheckCircle2'. Did you mean 'CheckCircle'?
+src/pages/landing/LandingPage.tsx(470,38): error TS2552: Cannot find name 'CheckCircle2'. Did you mean 'CheckCircle'?
+src/pages/landing/LandingPage.tsx(474,38): error TS2552: Cannot find name 'CheckCircle2'. Did you mean 'CheckCircle'?

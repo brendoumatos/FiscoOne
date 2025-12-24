@@ -93,7 +93,14 @@ export default function OnboardingWizard() {
     const onSubmit: SubmitHandler<CompanyData> = async (data) => {
         setIsSubmitting(true);
         try {
-            const createdCompany = await companyService.createCompany(data);
+            // Retrieve selected plan from earlier step
+            const planCode = localStorage.getItem('onboarding_plan');
+            const payload = { ...data, planCode: planCode || undefined };
+
+            const createdCompany = await companyService.createCompany(payload);
+
+            // Clear plan after use
+            localStorage.removeItem('onboarding_plan');
 
             // Updated: Pass the new ID to refreshCompanies so it selects it immediately
             // Note: We need to update AuthContext signature first, assume I will do that next.

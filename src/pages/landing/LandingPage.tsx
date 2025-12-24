@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, BarChart3, ShieldCheck, Zap, Globe, CheckCircle2, ChevronDown, Rocket, Building2, Lock } from "lucide-react";
+import { ArrowRight, BarChart, ShieldCheck, Zap, Globe, CheckCircle, ChevronDown, Rocket, Building, Lock, Clock, AlertCircle, Check } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
 
@@ -99,6 +99,142 @@ export default function LandingPage() {
                 </div>
             </section>
 
+            {/* Business Stages - "Built for Every Stage" */}
+            <section className="py-24 bg-slate-50 border-b border-slate-200">
+                <div className="container mx-auto px-6">
+                    <div className="text-center max-w-3xl mx-auto mb-16">
+                        <h2 className="text-3xl font-bold tracking-tight text-slate-900 mb-4">Construído para cada etapa do seu negócio</h2>
+                        <p className="text-lg text-slate-600">
+                            Não importa o tamanho da sua operação, o FiscoOne entrega a governança que você precisa para o próximo nível.
+                        </p>
+                    </div>
+
+                    <div className="grid md:grid-cols-4 gap-6">
+                        {[
+                            {
+                                title: "Autônomo / MEI",
+                                pain: "Perde tempo emitindo notas manualmente.",
+                                benefit: "Emita em segundos pelo celular.",
+                                cta: "Comece simples",
+                                color: "bg-blue-50 border-blue-100 text-blue-700"
+                            },
+                            {
+                                title: "Prestador de Serviços",
+                                pain: "Esquece cobranças recorrentes.",
+                                benefit: "Automação de mensalidades.",
+                                cta: "Automatize sua rotina",
+                                color: "bg-emerald-50 border-emerald-100 text-emerald-700"
+                            },
+                            {
+                                title: "Empresa em Crescimento",
+                                pain: "Sem visibilidade de impostos futuros.",
+                                benefit: "Dashboards preditivos de caixa.",
+                                cta: "Ganhe visibilidade",
+                                color: "bg-indigo-50 border-indigo-100 text-indigo-700"
+                            },
+                            {
+                                title: "Operação Estruturada",
+                                pain: "Risco de acessos não controlados.",
+                                benefit: "Governança e múltiplos usuários.",
+                                cta: "Centralize o controle",
+                                color: "bg-slate-50 border-slate-200 text-slate-700"
+                            }
+                        ].map((card, i) => (
+                            <div key={i} className={`p-6 rounded-2xl border ${card.color.replace('text', 'border')} bg-white hover:shadow-lg transition-all duration-300 group`}>
+                                <h3 className="font-bold text-slate-900 mb-3 text-lg">{card.title}</h3>
+                                <div className="space-y-3 mb-6">
+                                    <div className="flex items-start gap-2 text-sm text-slate-500">
+                                        <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                                        <span>{card.pain}</span>
+                                    </div>
+                                    <div className="flex items-start gap-2 text-sm text-slate-900 font-medium">
+                                        <Check className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                                        <span>{card.benefit}</span>
+                                    </div>
+                                </div>
+                                <div className={`text-xs font-bold uppercase tracking-wider flex items-center gap-1 ${card.color.split(' ').pop()} opacity-80 group-hover:opacity-100 transition-opacity`}>
+                                    {card.cta} <ArrowRight className="w-3 h-3" />
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </section>
+
+            {/* Fiscal Peace of Mind - Emotional Value */}
+            <section className="py-24 bg-white overflow-hidden relative">
+                <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent" />
+                <div className="container mx-auto px-6 relative">
+                    <div className="flex flex-col md:flex-row items-center gap-16">
+                        <div className="md:w-1/2 relative">
+                            {/* Abstract 'Calm' Visual */}
+                            <div className="absolute inset-0 bg-emerald-100/50 rounded-full blur-[80px]" />
+                            <div className="relative bg-white border border-slate-100 shadow-2xl rounded-2xl p-8 max-w-md mx-auto">
+                                <div className="flex items-center gap-4 mb-6 border-b border-slate-50 pb-4">
+                                    <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600">
+                                        <ShieldCheck className="w-6 h-6" />
+                                    </div>
+                                    <div>
+                                        <div className="text-sm text-slate-500">Status da Empresa</div>
+                                        <div className="text-lg font-bold text-emerald-700 flex items-center gap-2">
+                                            100% Em Compliance
+                                            <span className="flex h-2 w-2 relative">
+                                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="space-y-4">
+                                    {[
+                                        { text: "Nenhuma pendência fiscal encontrada", time: "Hoje, 09:41" },
+                                        { text: "Notas fiscais do mês emitidas", time: "Hoje, 08:30" },
+                                        { text: "Previsão de impostos atualizada", time: "Ontem" }
+                                    ].map((item, i) => (
+                                        <div key={i} className="flex gap-3 text-sm">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-slate-200 mt-2" />
+                                            <div>
+                                                <p className="text-slate-700 font-medium">{item.text}</p>
+                                                <p className="text-slate-400 text-xs">{item.time}</p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="md:w-1/2">
+                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 text-slate-600 text-xs font-bold uppercase tracking-widest mb-6">
+                                <Clock className="w-3 h-3" />
+                                Paz de Espírito Fiscal
+                            </div>
+                            <h2 className="text-4xl font-bold text-slate-900 mb-6 leading-tight">
+                                Durma tranquilo sabendo que sua empresa está <span className="text-emerald-600">sempre em dia.</span>
+                            </h2>
+                            <p className="text-lg text-slate-600 mb-8 leading-relaxed">
+                                Esqueça o medo de perder prazos ou pagar multas. O FiscoOne monitora sua operação
+                                24/7, garantindo que você e seu contador tenham visibilidade total antes que os problemas aconteçam.
+                            </p>
+
+                            <ul className="space-y-4">
+                                {[
+                                    "Nunca perca uma data de vencimento de imposto.",
+                                    "Evite multas por inconsistências cadastrais.",
+                                    "Tenha seu contador conectado diretamente à plataforma.",
+                                ].map((item, i) => (
+                                    <li key={i} className="flex items-center gap-3 text-slate-700">
+                                        <div className="w-6 h-6 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600 shrink-0">
+                                            <Check className="w-3.5 h-3.5" />
+                                        </div>
+                                        {item}
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
             {/* Features - Value Driven */}
             <section id="features" className="py-32 bg-slate-50">
                 <div className="container mx-auto px-6">
@@ -115,35 +251,44 @@ export default function LandingPage() {
                             {
                                 icon: Zap,
                                 title: "Automação Zero-Touch",
-                                desc: "Configure regras de emissão recorrente e esqueça. O sistema emite, valida e envia notas fiscais automaticamente."
+                                desc: "Configure regras de emissão recorrente e esqueça. O sistema emite, valida e envia notas fiscais automaticamente.",
+                                badge: "Automático"
                             },
                             {
                                 icon: ShieldCheck,
                                 title: "Blindagem Fiscal",
-                                desc: "Algoritmos que validam alíquotas e regras de retenção em tempo real, evitando multas e passivos trabalhistas."
+                                desc: "Algoritmos que validam alíquotas e regras de retenção em tempo real, evitando multas e passivos trabalhistas.",
+                                badge: "Segurança"
                             },
                             {
                                 icon: Globe,
                                 title: "Multi-CNPJ Nativo",
-                                desc: "Gerencie Holdings, Franquias ou Filiais em um único painel centralizado. Visão consolidada de caixa e impostos."
+                                desc: "Gerencie Holdings, Franquias ou Filiais em um único painel centralizado. Visão consolidada de caixa e impostos.",
+                                badge: "Enterprise"
                             },
                             {
-                                icon: BarChart3,
+                                icon: BarChart,
                                 title: "Inteligência Financeira",
-                                desc: "Dashboards que cruzam dados fiscais com fluxo de caixa, permitindo previsibilidade de impostos a pagar."
+                                desc: "Dashboards que cruzam dados fiscais com fluxo de caixa, permitindo previsibilidade de impostos a pagar.",
+                                badge: "Estratégico"
                             },
                             {
                                 icon: Lock,
                                 title: "Segurança Bancária",
-                                desc: "Criptografia de ponta a ponta, logs de auditoria imutáveis e controle de acesso granular baseado em roles."
+                                desc: "Criptografia de ponta a ponta, logs de auditoria imutáveis e controle de acesso granular baseado em roles.",
+                                badge: "Auditoria"
                             },
                             {
                                 icon: Rocket,
                                 title: "API-First Architecture",
-                                desc: "Documentação completa para desenvolvedores. Integre ao seu ERP ou CRM em minutos, não meses."
+                                desc: "Documentação completa para desenvolvedores. Integre ao seu ERP ou CRM em minutos, não meses.",
+                                badge: "Dev Friendly"
                             }
                         ].map((feature, i) => (
-                            <div key={i} className="group bg-white p-10 rounded-3xl border border-slate-200 hover:border-emerald-200 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+                            <div key={i} className="group bg-white p-10 rounded-3xl border border-slate-200 hover:border-emerald-200 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 relative overflow-hidden">
+                                <div className="absolute top-6 right-6 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <span className="bg-emerald-50 text-emerald-600 text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider">{feature.badge}</span>
+                                </div>
                                 <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-900 mb-8 group-hover:bg-emerald-50 group-hover:text-emerald-600 transition-colors">
                                     <feature.icon className="w-7 h-7" />
                                 </div>
@@ -241,19 +386,19 @@ export default function LandingPage() {
                             </div>
                             <ul className="space-y-4 mb-8 flex-1">
                                 <li className="flex items-start gap-3 text-sm text-slate-600">
-                                    <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
+                                    <CheckCircle className="w-5 h-5 text-emerald-500 shrink-0" />
                                     <span>Até <strong>2 Notas Fiscais</strong> por CNPJ (Vitalício)</span>
                                 </li>
                                 <li className="flex items-start gap-3 text-sm text-slate-600">
-                                    <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
+                                    <CheckCircle className="w-5 h-5 text-emerald-500 shrink-0" />
                                     <span>Acesso Básico ao Dashboard</span>
                                 </li>
                                 <li className="flex items-start gap-3 text-sm text-slate-600">
-                                    <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
+                                    <CheckCircle className="w-5 h-5 text-emerald-500 shrink-0" />
                                     <span>Suporte via Email</span>
                                 </li>
                             </ul>
-                            <Link to="/auth/signup" className="mt-auto">
+                            <Link to="/auth/signup?plan=FREE" className="mt-auto">
                                 <Button variant="outline" className="w-full h-12 rounded-xl border-slate-200 hover:bg-slate-50 text-slate-900 font-semibold">
                                     Criar Conta Teste
                                 </Button>
@@ -272,15 +417,15 @@ export default function LandingPage() {
                             </div>
                             <ul className="space-y-4 mb-8 flex-1">
                                 <li className="flex items-start gap-3 text-sm text-slate-600">
-                                    <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
+                                    <CheckCircle className="w-5 h-5 text-emerald-500 shrink-0" />
                                     <span>Até <strong>5 Notas Fiscais</strong>/mês</span>
                                 </li>
                                 <li className="flex items-start gap-3 text-sm text-slate-600">
-                                    <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
+                                    <CheckCircle className="w-5 h-5 text-emerald-500 shrink-0" />
                                     <span>Armazenamento XML por 5 anos</span>
                                 </li>
                                 <li className="flex items-start gap-3 text-sm text-slate-600">
-                                    <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
+                                    <CheckCircle className="w-5 h-5 text-emerald-500 shrink-0" />
                                     <span>Envio automático por Email</span>
                                 </li>
                                 <li className="flex items-start gap-3 text-sm text-slate-400">
@@ -288,7 +433,7 @@ export default function LandingPage() {
                                     <span>R$ 1,50 por nota adicional</span>
                                 </li>
                             </ul>
-                            <Link to="/auth/signup" className="mt-auto">
+                            <Link to="/auth/signup?plan=BASIC" className="mt-auto">
                                 <Button className="w-full h-12 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold">
                                     Assinar Inicial
                                 </Button>
@@ -310,27 +455,27 @@ export default function LandingPage() {
                             </div>
                             <ul className="space-y-4 mb-8 flex-1">
                                 <li className="flex items-start gap-3 text-sm text-slate-900 font-medium">
-                                    <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                                    <CheckCircle className="w-5 h-5 text-emerald-600 shrink-0" />
                                     <span>Notas Fiscais <strong>Ilimitadas</strong></span>
                                 </li>
                                 <li className="flex items-start gap-3 text-sm text-slate-700">
-                                    <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                                    <CheckCircle className="w-5 h-5 text-emerald-600 shrink-0" />
                                     <span>Inteligência Artificial Fiscal</span>
                                 </li>
                                 <li className="flex items-start gap-3 text-sm text-slate-700">
-                                    <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                                    <CheckCircle className="w-5 h-5 text-emerald-600 shrink-0" />
                                     <span>Até 3 Usuários</span>
                                 </li>
                                 <li className="flex items-start gap-3 text-sm text-slate-700">
-                                    <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                                    <CheckCircle className="w-5 h-5 text-emerald-600 shrink-0" />
                                     <span>Certificado Digital A1 Grátis</span>
                                 </li>
                                 <li className="flex items-start gap-3 text-sm text-slate-700">
-                                    <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                                    <CheckCircle className="w-5 h-5 text-emerald-600 shrink-0" />
                                     <span>Suporte Prioritário</span>
                                 </li>
                             </ul>
-                            <Link to="/auth/signup" className="mt-auto">
+                            <Link to="/auth/signup?plan=PRO" className="mt-auto">
                                 <Button className="w-full h-12 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold shadow-lg shadow-emerald-500/20">
                                     Começar Teste Grátis
                                 </Button>
@@ -338,38 +483,38 @@ export default function LandingPage() {
                         </div>
                     </div>
 
-                    {/* Enterprise / Need More? Section */}
-                    <div className="max-w-4xl mx-auto mt-24 text-center animate-in fade-in slide-in-from-bottom-8 duration-700">
+                    {/* Final CTA */}
+                    <div className="max-w-4xl mx-auto mt-24 text-center animate-in fade-in slide-in-from-bottom-8 duration-700 border-t border-slate-100 pt-16">
                         <div className="flex flex-col items-center">
-                            <span className="text-slate-400 mb-4 animate-bounce"><ArrowRight className="rotate-90 w-6 h-6" /></span>
-                            <h3 className="text-2xl font-bold text-slate-900 mb-2">Precisa de mais vantagens?</h3>
-                            <p className="text-slate-600 mb-8 max-w-xl">
-                                Para grandes volumes, operações de BPO, Holdings ou necessidades de API dedicada com SLA agressivo.
+                            <h3 className="text-3xl font-bold text-slate-900 mb-6">Comece Pequeno. <span className="text-emerald-600">Escale Sem Trocar.</span></h3>
+                            <p className="text-slate-600 mb-10 max-w-2xl text-lg">
+                                Você não precisa de um ERP caro agora, mas vai precisar de uma estrutura robusta amanhã.
+                                O FiscoOne é a única plataforma que acompanha sua jornada do primeiro cliente ao IPO.
                             </p>
 
-                            <div className="w-full bg-slate-50 border border-slate-200 rounded-3xl p-10 flex flex-col md:flex-row items-center justify-between text-left gap-8">
-                                <div>
-                                    <h4 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                                        <Building2 className="w-6 h-6 text-indigo-600" />
-                                        Plano Enterprise & Partners
-                                    </h4>
-                                    <ul className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2 text-sm text-slate-600">
-                                        <li className="flex gap-2"><CheckCircle2 className="w-4 h-4 text-indigo-500" /> API Dedicada</li>
-                                        <li className="flex gap-2"><CheckCircle2 className="w-4 h-4 text-indigo-500" /> Gestor de Conta</li>
-                                        <li className="flex gap-2"><CheckCircle2 className="w-4 h-4 text-indigo-500" /> SSO / SAML</li>
-                                        <li className="flex gap-2"><CheckCircle2 className="w-4 h-4 text-indigo-500" /> Custom Features</li>
-                                        <li className="flex gap-2"><CheckCircle2 className="w-4 h-4 text-indigo-500" /> Múltiplos CNPJs (+10)</li>
-                                        <li className="flex gap-2"><CheckCircle2 className="w-4 h-4 text-indigo-500" /> White-label opcional</li>
-                                    </ul>
-                                </div>
-                                <div className="shrink-0">
-                                    <Button className="h-12 px-8 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold shadow-lg shadow-indigo-500/20">
-                                        Falar com Especialistas
+                            <div className="flex flex-col sm:flex-row gap-4 w-full justify-center">
+                                <Link to="/auth/signup?plan=FREE">
+                                    <Button size="lg" className="h-12 px-8 rounded-full bg-slate-900 hover:bg-slate-800 shadow-xl text-white font-bold w-full sm:w-auto">
+                                        Criar Conta Gratuita
                                     </Button>
+                                </Link>
+                                <Button variant="outline" className="h-12 px-8 rounded-full border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold w-full sm:w-auto">
+                                    Falar com Especialistas
+                                </Button>
+                            </div>
+
+                            <div className="mt-12 flex items-center justify-center gap-8 text-sm text-slate-400 font-medium">
+                                <div className="flex items-center gap-2">
+                                    <Building className="w-4 h-4" />
+                                    <span>Planos Enterprise Disponíveis</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <ShieldCheck className="w-4 h-4" />
+                                    <span>Certificação SOC2</span>
                                 </div>
                             </div>
 
-                            <p className="text-xs text-slate-400 mt-6 max-w-screen-md">
+                            <p className="text-xs text-slate-300 mt-12 max-w-screen-md">
                                 * Custos de uso excedente: SMS (R$ 0,10/envio), Armazenamento Extra (R$ 0,05/GB). Os valores dos planos podem sofrer reajuste anual pelo IPCA.
                                 A garantia de uptime de 99.99% se aplica aos planos Enterprise.
                             </p>

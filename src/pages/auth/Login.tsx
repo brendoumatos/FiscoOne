@@ -15,7 +15,7 @@ export default function Login() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
-    const { login, isLoading } = useAuth();
+    const { login, loginAsDemo, isLoading } = useAuth();
     const navigate = useNavigate();
     const { toast } = useToast();
 
@@ -141,6 +141,20 @@ export default function Login() {
                         <Link to="/auth/signup" className="font-semibold text-emerald-600 hover:text-emerald-500 hover:underline">
                             Solicitar Acesso
                         </Link>
+                    </div>
+
+                    <div className="pt-4 border-t border-slate-100">
+                        <Button
+                            variant="outline"
+                            className="w-full h-10 text-sm border-dashed border-slate-300 text-slate-500 hover:text-emerald-600 hover:border-emerald-300 hover:bg-emerald-50 transition-all"
+                            onClick={async () => {
+                                await loginAsDemo('CLIENT');
+                                navigate("/dashboard");
+                            }}
+                            type="button"
+                        >
+                            🔐 Acessar Modo Demonstração (Sem Banco)
+                        </Button>
                     </div>
                 </div>
 

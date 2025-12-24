@@ -1,63 +1,123 @@
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { dashboardService } from "@/services/dashboard";
-import { type DashboardStats } from "@/types/dashboard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileText, Upload, MessageSquare, CreditCard, DollarSign, Activity, ArrowUpRight, AlertCircle, Calendar } from "lucide-react";
+import { FileText, Activity, ArrowUpRight, AlertCircle, DollarSign } from "lucide-react";
 // import { useToast } from "@/hooks/use-toast";
 import { FiscalHealthWidget } from "@/components/dashboard/FiscalHealthWidget";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
+import { FiscalScoreBadge } from "@/components/dashboard/FiscalScoreBadge";
+import { scoreService } from "@/services/score";
+import { useAuth } from "@/contexts/AuthContext";
+
+import { FinancialReadinessWidget } from "@/components/dashboard/FinancialReadinessWidget";
+import { readinessService } from "@/services/readiness";
+import { useSubscription } from "@/contexts/SubscriptionContext";
+import { PlanBadge } from "@/components/dashboard/PlanBadge";
+import { UsageWidget } from "@/components/dashboard/UsageWidget";
+import { AnnualUpsell } from "@/components/dashboard/AnnualUpsell";
+// import { PricingInsightWidget } from "@/components/dashboard/PricingInsightWidget";
+
 export default function Dashboard() {
     const navigate = useNavigate();
-    // const { toast } = useToast();
-    const { data: stats, isLoading } = useQuery<DashboardStats>({
-        queryKey: ['dashboard-stats'],
-        queryFn: dashboardService.getStats
+    const { currentCompany } = useAuth();
+    const { data: subscription } = useSubscription();
+
+    // Queries
+    const { data: stats } = useQuery({
+        queryKey: ['dashboard-stats', currentCompany?.id],
+        queryFn: () => dashboardService.getStats(), // Removed arg
+        enabled: !!currentCompany
+    });
+
+    const { data: scoreData } = useQuery({
+        queryKey: ['fiscal-score', currentCompany?.id],
+        queryFn: () => currentCompany ? scoreService.getScore(currentCompany.id) : null,
+        enabled: !!currentCompany
+    });
+
+    const { data: readiness } = useQuery({
+        queryKey: ['financial-readiness', currentCompany?.id],
+        queryFn: () => currentCompany ? readinessService.getReadiness(currentCompany.id) : null,
+        enabled: !!currentCompany
     });
 
     const quickActions = [
-        { icon: FileText, label: "Nova Nota Fiscal", description: "Emitir NFS-e", color: "bg-emerald-500", onClick: () => navigate('/dashboard/invoices') },
-        { icon: FileText, label: "Solicitar Guia", description: "DAS, ISS, INSS", color: "bg-slate-800", onClick: () => navigate('/dashboard/taxes') },
-        { icon: Upload, label: "Enviar Documento", description: "Upload de arquivos", color: "bg-slate-800", onClick: () => navigate('/dashboard/expenses') },
-        { icon: MessageSquare, label: "Falar com Contador", description: "Chat direto", color: "bg-slate-800", onClick: () => navigate('/dashboard/chat') },
-        { icon: CreditCard, label: "Pagar Guia", description: "PIX ou Boleto", color: "bg-slate-800", onClick: () => navigate('/dashboard/taxes') },
+        { label: "Emitir Nota", description: "Gerar nova NF-e/NFS-e", icon: FileText, color: "bg-blue-500", onClick: () => navigate('/dashboard/invoices/issue') },
+        { label: "Ver Impostos", description: "Guia DAS e Darf", icon: AlertCircle, color: "bg-amber-500", onClick: () => navigate('/dashboard/taxes') },
+        { label: "Conciliar", description: "Importar extrato OFX", icon: Activity, color: "bg-emerald-500", onClick: () => navigate('/dashboard/finance') },
     ];
 
     const chartData = [
-        { name: 'Jan', receita: 12000, despesas: 8000 },
-        { name: 'Fev', receita: 15000, despesas: 9500 },
-        { name: 'Mar', receita: 18000, despesas: 11000 },
-        { name: 'Abr', receita: 16000, despesas: 10000 },
-        { name: 'Mai', receita: 21000, despesas: 12000 },
-        { name: 'Jun', receita: 24500, despesas: 13500 },
+        { name: 'Jan', receita: 4000, despesas: 2400 },
+        { name: 'Fev', receita: 3000, despesas: 1398 },
+        { name: 'Mar', receita: 2000, despesas: 9800 },
+        { name: 'Abr', receita: 2780, despesas: 3908 },
+        { name: 'Mai', receita: 1890, despesas: 4800 },
+        { name: 'Jun', receita: 2390, despesas: 3800 },
     ];
-
-    if (isLoading) {
-        return <div className="flex h-full items-center justify-center">Carregando dashboard...</div>;
-    }
 
     return (
         <div className="space-y-8 animate-in fade-in duration-500 pb-20">
-            {/* Header Section with "Comfort" spacing */}
+            {/* Header */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight text-slate-900">Visão Geral</h1>
-                    <p className="text-slate-500 mt-1">Acompanhe a saúde financeira da sua operação em tempo real.</p>
+                    <h2 className="text-3xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
+                        Visão Geral
+                        {subscription && <PlanBadge planCode={subscription.plan.code} planName={subscription.plan.name} />}
+                    </h2>
+                    <p className="text-slate-500">Bem-vindo de volta, {currentCompany?.tradeName || "Empresa"}.</p>
                 </div>
                 <div className="flex items-center gap-2">
-                    <span className="text-xs text-slate-400 font-medium px-3 py-1 bg-white rounded-full border border-slate-200 shadow-sm flex items-center gap-2">
-                        <Calendar className="h-3 w-3" />
-                        Hoje, 23 de Dezembro
-                    </span>
+                    {scoreData && (
+                        <FiscalScoreBadge
+                            score={scoreData.score}
+                            riskLevel={scoreData.riskLevel}
+                            explanation={scoreData.explanation || []}
+                        />
+                    )}
+                    <Button onClick={() => navigate('/dashboard/invoices/issue')}>
+                        <FileText className="mr-2 h-4 w-4" /> Nova Nota
+                    </Button>
                 </div>
             </div>
 
-            {/* 0. Fiscal Health Widget (Premium) */}
-            <FiscalHealthWidget
-                financials={stats ? { revenue: stats.monthlyRevenue, debts: stats.pendingTaxes, annualRevenue: stats.annualRevenue } : undefined}
-            />
+            <div className="grid gap-6 md:grid-cols-3">
+                <div className="md:col-span-2">
+                    <FiscalHealthWidget
+                        financials={stats ? { revenue: stats.monthlyRevenue, debts: stats.pendingTaxes, annualRevenue: stats.annualRevenue } : undefined}
+                    />
+                </div>
+                <div className="md:col-span-1 space-y-6">
+                    {subscription && (
+                        <UsageWidget
+                            current={subscription.usage.invoices}
+                            limit={subscription.plan.limit}
+                            planName={subscription.plan.name}
+                        />
+                    )}
+
+                    {readiness && (
+                        <FinancialReadinessWidget
+                            status={readiness.status}
+                            explanation={readiness.explanation}
+                            avgRevenue={readiness.summary.avgMonthlyRevenue}
+                            score={readiness.summary.fiscalScore}
+                        />
+                    )}
+                </div>
+            </div>
+
+            {/* Metrics Cards ... */}
+
+            {/* Annual Plan Upsell */}
+            {!subscription?.plan.cycle || subscription.plan.cycle === 'MONTHLY' ? (
+                <div className="mb-6">
+                    <AnnualUpsell />
+                </div>
+            ) : null}
 
             {/* Metrics Cards - "Safety & Sophistication" */}
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">

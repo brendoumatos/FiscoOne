@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Loader2, CheckCircle2, ChevronRight, Calculator, FileCode } from "lucide-react";
 import { nfseXmlBuilder } from "@/services/xml/nfse";
 import { useCertificate } from "@/contexts/CertificateContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { InvoiceStatus, type Invoice } from "@/types/invoice";
 
@@ -49,7 +50,7 @@ export default function IssueInvoice() {
     const navigate = useNavigate();
     const { certificate } = useCertificate();
 
-    const { register, handleSubmit, formState: { errors }, trigger, watch, getValues } = useForm<IssueInvoiceFormData>({
+    const { register, handleSubmit, formState: { errors }, trigger, watch, getValues, setValue } = useForm<IssueInvoiceFormData>({
         resolver: zodResolver(issueInvoiceSchema) as any,
         defaultValues: {
             borrower: {
@@ -142,11 +143,19 @@ export default function IssueInvoice() {
         setXmlPreview(xml);
     };
 
+    const { currentCompany } = useAuth();
+
     const onSubmit = async (data: IssueInvoiceFormData) => {
+        if (!currentCompany) return;
         setIsSubmitting(true);
         try {
             await invoiceService.createInvoice({
-                borrower: data.borrower,
+                companyId: currentCompany.id,
+                amount: data.serviceItem.amount,
+                borrower: {
+                    ...data.borrower,
+                    // Ensure address matches Borrower type if necessary, or let implicit typing work
+                } as any, // Cast to avoid strict type mismatch on deep address objects if slightly different
                 items: [{
                     serviceCode: data.serviceItem.serviceCode,
                     description: data.serviceItem.description,

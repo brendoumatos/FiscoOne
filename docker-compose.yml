@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  # Local simulator for Azure Database for PostgreSQL
+  db:
+    image: postgres:15-alpine
+    container_name: fiscoone_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: fiscoone_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:

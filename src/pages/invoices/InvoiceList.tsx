@@ -42,10 +42,18 @@ const StatusBadge = ({ status }: { status: InvoiceStatus }) => {
     );
 };
 
+import { useAuth } from "@/contexts/AuthContext";
+
 export default function InvoiceList() {
+    const { currentCompany } = useAuth();
+
     const { data: invoices, isLoading } = useQuery<Invoice[]>({
-        queryKey: ['invoices'],
-        queryFn: invoiceService.getInvoices
+        queryKey: ['invoices', currentCompany?.id],
+        queryFn: () => {
+            if (!currentCompany) return Promise.resolve([]);
+            return invoiceService.getInvoices(currentCompany.id);
+        },
+        enabled: !!currentCompany
     });
 
     return (

@@ -52,42 +52,61 @@ function ProtectedRoute() {
   return <Outlet />;
 }
 
+import { BrandingProvider } from "@/contexts/BrandingContext"
+import { SubscriptionProvider } from "@/contexts/SubscriptionContext"
+import TimelinePage from "@/pages/dashboard/timeline/index"
+import MarketplacePage from "@/pages/dashboard/marketplace/index"
+import AccountantSettings from "@/pages/dashboard/accountant/Settings"
+import ReferralDashboard from "@/pages/dashboard/referral/index"
+
+// ...
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <ThemeProvider defaultTheme="light" storageKey="vite-ui-theme">
-          <CertificateProvider>
-            <AuthProvider>
-              <Routes>
-                <Route path="/" element={<LandingPage />} />
+          <BrandingProvider>
+            <CertificateProvider>
+              <AuthProvider>
+                <SubscriptionProvider>
+                  <Routes>
+                    <Route path="/" element={<LandingPage />} />
 
-                <Route path="/auth/login" element={<Login />} />
-                <Route path="/auth/signup" element={<Signup />} />
+                    <Route path="/auth/login" element={<Login />} />
+                    <Route path="/auth/signup" element={<Signup />} />
 
-                <Route element={<ProtectedRoute />}>
-                  {/* Onboarding - Standalone Page */}
-                  <Route path="/onboarding" element={<OnboardingWizard />} />
+                    <Route element={<ProtectedRoute />}>
+                      {/* Onboarding - Standalone Page */}
+                      <Route path="/onboarding" element={<OnboardingWizard />} />
 
-                  {/* Main App - With Sidebar/Header */}
-                  <Route path="/dashboard" element={<MainLayout />}>
-                    <Route index element={<Dashboard />} />
-                    <Route path="invoices" element={<InvoiceList />} />
-                    <Route path="invoices/issue" element={<IssueInvoice />} />
-                    <Route path="taxes" element={<TaxesMain />} />
-                    <Route path="documents" element={<DocumentLibrary />} />
-                    <Route path="accountant" element={<ClientsList />} />
-                    <Route path="chat" element={<Chat />} />
-                    <Route path="recurrence" element={<RecurrenceList />} />
-                    <Route path="expenses" element={<ExpenseList />} />
-                    <Route path="partners" element={<PartnerMarketplace />} />
-                    <Route path="settings" element={<Settings />} />
-                  </Route>
-                </Route>
-              </Routes>
-              <Toaster />
-            </AuthProvider>
-          </CertificateProvider>
+                      {/* Main App - With Sidebar/Header */}
+                      <Route path="/dashboard" element={<MainLayout />}>
+                        <Route index element={<Dashboard />} />
+                        <Route path="invoices" element={<InvoiceList />} />
+                        <Route path="invoices/issue" element={<IssueInvoice />} />
+                        <Route path="taxes" element={<TaxesMain />} />
+                        <Route path="documents" element={<DocumentLibrary />} />
+                        <Route path="accountant" element={<ClientsList />} />
+                        <Route path="chat" element={<Chat />} />
+                        <Route path="recurrence" element={<RecurrenceList />} />
+                        <Route path="expenses" element={<ExpenseList />} />
+                        <Route path="partners" element={<PartnerMarketplace />} />
+                        <Route path="settings" element={<Settings />} />
+
+                        {/* New Features */}
+                        <Route path="marketplace" element={<MarketplacePage />} />
+                        <Route path="timeline" element={<TimelinePage />} />
+                        <Route path="referral" element={<ReferralDashboard />} />
+                        <Route path="accountant/settings" element={<AccountantSettings />} />
+                      </Route>
+                    </Route>
+                  </Routes>
+                  <Toaster />
+                </SubscriptionProvider>
+              </AuthProvider>
+            </CertificateProvider>
+          </BrandingProvider>
         </ThemeProvider>
       </BrowserRouter>
     </QueryClientProvider>
