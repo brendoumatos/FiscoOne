@@ -16,6 +16,9 @@ export interface SubscriptionData {
     usage: UsageInfo;
     features: string[];
     createdAt: string; // ISO Date of company creation
+    expirationDate?: string | null;
+    seatLimit?: number;
+    currentCollaborators?: number;
 }
 
 export const subscriptionService = {

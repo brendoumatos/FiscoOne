@@ -14,6 +14,7 @@ import { Loader2, CheckCircle2, ChevronRight, Calculator, FileCode } from "lucid
 import { nfseXmlBuilder } from "@/services/xml/nfse";
 import { useCertificate } from "@/contexts/CertificateContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSubscription } from "@/contexts/SubscriptionContext";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { InvoiceStatus, type Invoice } from "@/types/invoice";
 
@@ -144,9 +145,17 @@ export default function IssueInvoice() {
     };
 
     const { currentCompany } = useAuth();
+    const { canIssueInvoice } = useSubscription();
+    const [blocked, setBlocked] = useState(false);
+    const [blockReason, setBlockReason] = useState<string | null>(null);
 
     const onSubmit = async (data: IssueInvoiceFormData) => {
         if (!currentCompany) return;
+        if (!canIssueInvoice()) {
+            setBlocked(true);
+            setBlockReason('Seu plano atual não permite emitir novas notas. Faça upgrade ou compre créditos.');
+            return;
+        }
         setIsSubmitting(true);
         try {
             await invoiceService.createInvoice({
@@ -165,6 +174,8 @@ export default function IssueInvoice() {
             navigate("/dashboard/invoices");
         } catch (error) {
             console.error("Failed to issue invoice", error);
+            setBlocked(true);
+            setBlockReason('Não foi possível emitir a nota. Verifique limites do plano ou tente novamente.');
         } finally {
             setIsSubmitting(false);
         }
@@ -183,6 +194,15 @@ export default function IssueInvoice() {
                     Emitir Nova <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-teal-500">Nota Fiscal</span>
                 </h2>
                 <p className="text-slate-500 mt-1 text-lg">Preencha os dados abaixo para gerar sua NFS-e com segurança.</p>
+                {blocked && (
+                    <div className="mt-4 p-3 rounded-lg border border-amber-200 bg-amber-50 text-amber-800 text-sm">
+                        {blockReason}
+                        <div className="mt-2 flex gap-2">
+                            <Button size="sm" variant="outline" onClick={() => navigate('/dashboard/pricing')}>Ver planos</Button>
+                            <Button size="sm" variant="default" onClick={() => navigate('/dashboard/subscription')}>Fazer upgrade</Button>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Premium Wizard Steps */}

@@ -18,7 +18,8 @@ import { useSubscription } from "@/contexts/SubscriptionContext";
 import { PlanBadge } from "@/components/dashboard/PlanBadge";
 import { UsageWidget } from "@/components/dashboard/UsageWidget";
 import { AnnualUpsell } from "@/components/dashboard/AnnualUpsell";
-// import { PricingInsightWidget } from "@/components/dashboard/PricingInsightWidget";
+import { PricingInsight } from "@/components/dashboard/PricingInsight";
+import { useSubscription } from "@/contexts/SubscriptionContext";
 
 export default function Dashboard() {
     const navigate = useNavigate();
@@ -98,6 +99,8 @@ export default function Dashboard() {
                             planName={subscription.plan.name}
                         />
                     )}
+
+                    <PricingInsight />
 
                     {readiness && (
                         <FinancialReadinessWidget

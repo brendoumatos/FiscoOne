@@ -1,14 +1,14 @@
 import { Router, Response } from 'express';
-import { authenticateToken, AuthRequest } from '../middleware/auth';
+import { AuthRequest } from '../middleware/auth';
+import { requireRole, PERMISSIONS } from '../middleware/requireRole';
 import { dashboardService } from '../services/dashboard';
+import { protectedCompanyRouter } from '../utils/protectedCompanyRouter';
 
-const router = Router();
+const router = protectedCompanyRouter();
 
-router.get('/stats', authenticateToken, async (req: AuthRequest, res: Response) => {
+router.get('/:companyId/stats', requireRole(PERMISSIONS.INVOICE_READ), async (req: AuthRequest, res: Response) => {
     try {
-        const companyId = req.user?.companyId;
-        if (!companyId) return res.status(400).json({ message: 'Company ID required' });
-
+        const { companyId } = req.params;
         const stats = await dashboardService.getStats(companyId);
         res.json(stats);
     } catch (error) {

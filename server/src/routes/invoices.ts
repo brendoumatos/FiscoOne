@@ -1,36 +1,23 @@
 import { Router, Response } from 'express';
 import { connectToDatabase } from '../config/db';
-import { authenticateToken, AuthRequest } from '../middleware/auth';
+import { AuthRequest } from '../middleware/auth';
+import { requireRole, PERMISSIONS } from '../middleware/requireRole';
 import storageService from '../services/storage';
 import { timelineService } from '../services/timeline';
 import { subscriptionService } from '../services/subscription';
 import { usageService } from '../services/usage';
+import { auditLogService } from '../services/auditLog';
+import { pool } from '../config/db';
+import { protectedCompanyRouter } from '../utils/protectedCompanyRouter';
 
-const router = Router();
-
-router.use(authenticateToken);
+const router = protectedCompanyRouter();
 
 // GET /invoices
-router.get('/', async (req: AuthRequest, res: Response) => {
-    const userId = req.user.id;
-    const companyId = req.query.companyId as string;
-
-    if (!companyId) {
-        return res.status(400).json({ message: 'Company ID obrigatório.' });
-    }
+router.get('/:companyId', requireRole(PERMISSIONS.INVOICE_READ), async (req: AuthRequest, res: Response) => {
+    const { companyId } = req.params;
 
     try {
         const pool = await connectToDatabase();
-
-        // Security check
-        const ownershipCheck = await pool.query(
-            'SELECT 1 FROM companies WHERE id = $1 AND owner_id = $2',
-            [companyId, userId]
-        );
-
-        if (ownershipCheck.rows.length === 0) {
-            return res.status(403).json({ message: 'Acesso negado a esta empresa.' });
-        }
 
         const result = await pool.query(
             `SELECT * FROM invoices 
@@ -47,9 +34,9 @@ router.get('/', async (req: AuthRequest, res: Response) => {
 });
 
 // POST /invoices
-router.post('/', async (req: AuthRequest, res: Response) => {
+router.post('/:companyId', requireRole(PERMISSIONS.INVOICE_WRITE), async (req: AuthRequest, res: Response) => {
+    const { companyId } = req.params;
     const {
-        companyId,
         borrower,
         items,
         amount
@@ -110,11 +97,54 @@ router.post('/', async (req: AuthRequest, res: Response) => {
         // Usage Hook
         await usageService.incrementUsage(companyId, 'INVOICES_ISSUED');
 
+        // Audit Log (fail fast if logging fails)
+        await auditLogService.log({
+            action: 'INVOICE_ISSUED',
+            entityType: 'INVOICE',
+            entityId: newInvoice.id,
+            afterState: newInvoice,
+            req
+        });
+
         res.status(201).json(newInvoice);
 
     } catch (error) {
         console.error('Erro ao emitir nota:', error);
         res.status(500).json({ message: 'Erro ao emitir nota.' });
+    }
+});
+
+// Cancel invoice
+router.post('/:companyId/:invoiceId/cancel', requireRole(PERMISSIONS.INVOICE_CANCEL), async (req: AuthRequest, res: Response) => {
+    const { companyId, invoiceId } = req.params;
+
+    try {
+        const entitlement = await subscriptionService.checkEntitlement(companyId, 'CANCEL_INVOICE');
+        if (!entitlement.allowed) {
+            return res.status(403).json({ message: entitlement.reason || 'Plano não permite cancelar notas' });
+        }
+
+        const result = await pool.query(
+            `UPDATE invoices SET status = 'CANCELLED' WHERE id = $1 AND company_id = $2 RETURNING *`,
+            [invoiceId, companyId]
+        );
+        if (result.rowCount === 0) {
+            return res.status(404).json({ message: 'Nota não encontrada' });
+        }
+
+        await auditLogService.log({
+            action: 'INVOICE_CANCELLED',
+            entityType: 'INVOICE',
+            entityId: invoiceId,
+            beforeState: { id: invoiceId },
+            afterState: { status: 'CANCELLED' },
+            req
+        });
+
+        res.json(result.rows[0]);
+    } catch (error) {
+        console.error('Erro ao cancelar nota:', error);
+        res.status(500).json({ message: 'Erro ao cancelar nota' });
     }
 });
 

@@ -1,13 +1,13 @@
 import { Router, Response } from 'express';
-import { authenticateToken, AuthRequest } from '../middleware/auth';
+import { AuthRequest } from '../middleware/auth';
+import { requireRole, PERMISSIONS } from '../middleware/requireRole';
 import { scoreService } from '../services/score';
+import { protectedCompanyRouter } from '../utils/protectedCompanyRouter';
 
-const router = Router();
-
-router.use(authenticateToken);
+const router = protectedCompanyRouter();
 
 // GET /companies/:id/score
-router.get('/:companyId/score', async (req: AuthRequest, res: Response) => {
+router.get('/:companyId/score', requireRole(PERMISSIONS.INVOICE_READ), async (req: AuthRequest, res: Response) => {
     const { companyId } = req.params;
 
     // Security check: simple check if user owns company typically done here or middleware
@@ -23,7 +23,7 @@ router.get('/:companyId/score', async (req: AuthRequest, res: Response) => {
 });
 
 // POST /companies/:id/score/recalculate
-router.post('/:companyId/score/recalculate', async (req: AuthRequest, res: Response) => {
+router.post('/:companyId/score/recalculate', requireRole(PERMISSIONS.FISCAL_SETUP), async (req: AuthRequest, res: Response) => {
     const { companyId } = req.params;
     try {
         const scoreData = await scoreService.calculateScore(companyId);

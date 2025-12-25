@@ -1,11 +1,12 @@
 import { Router, Response } from 'express';
-import { authenticateToken, AuthRequest } from '../middleware/auth';
+import { AuthRequest } from '../middleware/auth';
+import { requireRole, PERMISSIONS } from '../middleware/requireRole';
 import { timelineService } from '../services/timeline';
+import { protectedCompanyRouter } from '../utils/protectedCompanyRouter';
 
-const router = Router();
-router.use(authenticateToken);
+const router = protectedCompanyRouter();
 
-router.get('/:companyId', async (req: AuthRequest, res: Response) => {
+router.get('/:companyId', requireRole(PERMISSIONS.INVOICE_READ), async (req: AuthRequest, res: Response) => {
     const { companyId } = req.params;
     const { type } = req.query;
 

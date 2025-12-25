@@ -1,6 +1,8 @@
 import { Router, Response } from 'express';
 import { connectToDatabase } from '../config/db';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
+import { auditLogService } from '../services/auditLog';
+import { subscriptionService } from '../services/subscription';
 
 const router = Router();
 
@@ -57,8 +59,12 @@ router.post('/', async (req: AuthRequest, res: Response) => {
         try {
             await client.query('BEGIN');
 
-            // Delete existing active company with this CNPJ
-            await client.query('DELETE FROM companies WHERE cnpj = $1', [cleanCnpj]);
+            // Do not overwrite existing company silently
+            const existing = await client.query('SELECT id FROM companies WHERE cnpj = $1', [cleanCnpj]);
+            if (existing.rowCount > 0) {
+                await client.query('ROLLBACK');
+                return res.status(409).json({ message: 'Empresa com este CNPJ já existe.' });
+            }
 
             // Insert New
             const insertResult = await client.query(
@@ -82,7 +88,6 @@ router.post('/', async (req: AuthRequest, res: Response) => {
             const newCompany = insertResult.rows[0];
 
             // 3. Create Subscription (Default to FREE if not provided, or selected plan)
-            const { subscriptionService } = await import('../services/subscription');
             const planCodeToUse = req.body.planCode || 'FREE';
 
             // Reuse upgradeSubscription or make a new create method. 
@@ -91,6 +96,15 @@ router.post('/', async (req: AuthRequest, res: Response) => {
             // Create a specific "createInitialSubscription" method.
             // For now, let's use a direct insert or a helper method.
             await subscriptionService.createInitialSubscription(newCompany.id, planCodeToUse);
+
+            await auditLogService.log({
+                action: 'COMPANY_SETTINGS_UPDATED',
+                entityType: 'COMPANY',
+                entityId: newCompany.id,
+                beforeState: null,
+                afterState: newCompany,
+                req
+            });
 
             res.status(201).json({
                 ...newCompany,

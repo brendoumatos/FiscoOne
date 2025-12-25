@@ -33,6 +33,7 @@ import marketplaceRouter from './routes/marketplace';
 import timelineRouter from './routes/timeline';
 import accountantRouter from './routes/accountant'; // check filename: accountant.ts
 import subscriptionRouter from './routes/subscription'; // check filename: subscription.ts
+import userRouter from './routes/users';
 
 app.use('/auth', authRoutes);
 app.use('/companies', companyRoutes);
@@ -43,6 +44,7 @@ app.use('/marketplace', marketplaceRouter);
 app.use('/timeline', timelineRouter);
 app.use('/accountants', accountantRouter);
 app.use('/subscriptions', subscriptionRouter);
+app.use('/companies', userRouter); // user management under company scope
 
 
 export default app;

@@ -5,7 +5,7 @@ import { AuthRequest } from './auth';
 /**
  * Definição de Tipos de Roles para segurança de tipagem
  */
-export type CompanyRole = 'OWNER' | 'ADMIN' | 'FINANCE' | 'VIEWER';
+export type CompanyRole = 'OWNER' | 'ADMIN' | 'FINANCE' | 'VIEWER' | 'COLLABORATOR';
 export type AccountantRole = 'ACCOUNTANT' | 'SUPERVISOR';
 export type AnyRole = CompanyRole | AccountantRole;
 

@@ -9,6 +9,7 @@ interface SubscriptionContextType {
     refresh: () => void;
     hasFeature: (code: string) => boolean;
     canIssueInvoice: () => boolean;
+    canAddCollaborator: () => boolean;
 }
 
 const SubscriptionContext = createContext<SubscriptionContextType>({
@@ -16,7 +17,8 @@ const SubscriptionContext = createContext<SubscriptionContextType>({
     isLoading: true,
     refresh: () => { },
     hasFeature: () => false,
-    canIssueInvoice: () => false
+    canIssueInvoice: () => false,
+    canAddCollaborator: () => false
 });
 
 export const useSubscription = () => useContext(SubscriptionContext);
@@ -53,24 +55,25 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
         // 1. Enterprise / Unlimited
         if (data.plan.limit === -1) return true;
 
-        // 2. Free Plan Expiration Rule (2 Months)
-        if (data.plan.code === 'FREE') {
-            const createdAt = new Date(data.createdAt); // Assuming data includes createdAt or we fetch it
-            const sixtyDaysAgo = new Date();
-            sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
-
-            if (createdAt < sixtyDaysAgo) {
-                console.warn("Free plan expired");
-                return false; // Expired
-            }
+        // 2. Free Plan Expiration Rule (use explicit expirationDate if provided)
+        if (data.plan.code === 'FREE' && data.expirationDate) {
+            const exp = new Date(data.expirationDate);
+            if (Date.now() > exp.getTime()) return false;
         }
 
         // 3. Usage Limit
         return data.usage.invoices < data.plan.limit;
     };
 
+    const canAddCollaborator = () => {
+        if (!data) return false;
+        if (data.seatLimit === undefined || data.currentCollaborators === undefined) return false;
+        if (data.seatLimit === -1) return true;
+        return data.currentCollaborators < data.seatLimit;
+    };
+
     return (
-        <SubscriptionContext.Provider value={{ data, isLoading, refresh: load, hasFeature, canIssueInvoice }}>
+        <SubscriptionContext.Provider value={{ data, isLoading, refresh: load, hasFeature, canIssueInvoice, canAddCollaborator }}>
             {children}
         </SubscriptionContext.Provider>
     );

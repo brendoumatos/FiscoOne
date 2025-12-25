@@ -1,14 +1,14 @@
 import { Router, Response } from 'express';
-import { authenticateToken, AuthRequest } from '../middleware/auth';
+import { AuthRequest } from '../middleware/auth';
+import { requireRole, PERMISSIONS } from '../middleware/requireRole';
 import { pricingEngine } from '../services/pricing_engine';
+import { protectedCompanyRouter } from '../utils/protectedCompanyRouter';
 
-const router = Router();
-router.use(authenticateToken);
+const router = protectedCompanyRouter();
 
-router.get('/insight', async (req: AuthRequest, res: Response) => {
+router.get('/:companyId/insight', requireRole(PERMISSIONS.COMPANY_SETTINGS), async (req: AuthRequest, res: Response) => {
     try {
-        const companyId = req.user?.companyId;
-        if (!companyId) return res.status(400).json({ message: 'No company context' });
+        const { companyId } = req.params;
 
         const insight = await pricingEngine.getLatestRecommendation(companyId);
         res.json(insight || null);

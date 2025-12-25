@@ -1,12 +1,12 @@
 import { Router, Response } from 'express';
-import { authenticateToken, AuthRequest } from '../middleware/auth';
+import { AuthRequest } from '../middleware/auth';
+import { requireRole, PERMISSIONS } from '../middleware/requireRole';
 import { readinessService } from '../services/readiness';
+import { protectedCompanyRouter } from '../utils/protectedCompanyRouter';
 
-const router = Router();
+const router = protectedCompanyRouter();
 
-router.use(authenticateToken);
-
-router.get('/:companyId/readiness', async (req: AuthRequest, res: Response) => {
+router.get('/:companyId/readiness', requireRole(PERMISSIONS.INVOICE_READ), async (req: AuthRequest, res: Response) => {
     const { companyId } = req.params;
     try {
         const data = await readinessService.getLatestReadiness(companyId);
@@ -17,7 +17,7 @@ router.get('/:companyId/readiness', async (req: AuthRequest, res: Response) => {
     }
 });
 
-router.post('/:companyId/readiness/recalculate', async (req: AuthRequest, res: Response) => {
+router.post('/:companyId/readiness/recalculate', requireRole(PERMISSIONS.FISCAL_SETUP), async (req: AuthRequest, res: Response) => {
     const { companyId } = req.params;
     try {
         const data = await readinessService.calculateReadiness(companyId);

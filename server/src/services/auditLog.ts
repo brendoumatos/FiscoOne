@@ -32,52 +32,43 @@ export const auditLogService = {
      * Extracts actor details strictly from the authenticated request context.
      */
     async log(event: AuditEvent) {
-        try {
-            const { req, action, entityType, entityId, beforeState, afterState } = event;
+        const { req, action, entityType, entityId, beforeState, afterState } = event;
 
-            // Extract Actor Data from Secure Context
-            // Using the 'any' casts because we dynamically enriched req in the middleware
-            const context = (req as any).context || {};
-            const user = req.user;
+        // Extract Actor Data from Secure Context
+        const context = (req as any).context || {};
+        const user = req.user as any;
 
-            if (!user || !user.id || !context.companyId) {
-                console.error('[Audit Log] Failed: Missing user or company context', { action, entityId });
-                return; // Fail safe (or throw if strict)
-            }
-
-            const actorType = context.accessType === 'ACCOUNTANT_DELEGATED' ? 'ACCOUNTANT' : 'COMPANY_USER';
-            const accountingFirmId = context.accountingFirmId || null;
-
-            // IP & User Agent
-            const ipAddress = req.ip || req.socket.remoteAddress;
-            const userAgent = req.get('User-Agent');
-
-            await pool.query(
-                `INSERT INTO audit_logs 
-                (company_id, actor_user_id, actor_type, actor_accounting_firm_id, 
-                 action, entity_type, entity_id, before_state, after_state, 
-                 ip_address, user_agent)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
-                [
-                    context.companyId,
-                    user.id,
-                    actorType,
-                    accountingFirmId,
-                    action,
-                    entityType,
-                    entityId,
-                    beforeState ? JSON.stringify(beforeState) : null,
-                    afterState ? JSON.stringify(afterState) : null,
-                    ipAddress,
-                    userAgent
-                ]
-            );
-
-        } catch (error) {
-            // Critical: Audit logging failure should be alerted.
-            // In a real system, we might push to a backup queue or file.
-            console.error('[Audit Log] CRITICAL FAILURE:', error);
+        if (!user || !user.id || !context.companyId) {
+            throw new Error('[Audit Log] Missing user/company context');
         }
+
+        const actorType = context.accessType === 'ACCOUNTANT_DELEGATED' ? 'ACCOUNTANT' : 'COMPANY_USER';
+        const accountingFirmId = context.accountingFirmId || null;
+
+        // IP & User Agent
+        const ipAddress = req.ip || req.socket.remoteAddress;
+        const userAgent = req.get('User-Agent');
+
+        await pool.query(
+            `INSERT INTO audit_logs 
+            (company_id, actor_user_id, actor_type, actor_accounting_firm_id, 
+             action, entity_type, entity_id, before_state, after_state, 
+             ip_address, user_agent)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+            [
+                context.companyId,
+                user.id,
+                actorType,
+                accountingFirmId,
+                action,
+                entityType,
+                entityId,
+                beforeState ? JSON.stringify(beforeState) : null,
+                afterState ? JSON.stringify(afterState) : null,
+                ipAddress,
+                userAgent
+            ]
+        );
     },
 
     /**
