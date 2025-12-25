@@ -26,6 +26,11 @@ export const companySchema = z.object({
     tradeName: z.string().min(3, "Trade name required"),
     taxRegime: z.enum(TAX_REGIMES),
     cnae: z.string().optional(),
+    // Growth Profile
+    averageMonthlyRevenue: z.number().optional(),
+    invoiceFrequency: z.enum(["DAILY", "WEEKLY", "MONTHLY", "SPORADIC"]).optional(),
+    taxManagement: z.enum(["ACCOUNTANT", "SPREADSHEET", "ERP", "NONE"]).optional(),
+
     address: addressSchema,
     bankInfo: bankInfoSchema,
 });

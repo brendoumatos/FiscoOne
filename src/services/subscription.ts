@@ -15,6 +15,7 @@ export interface SubscriptionData {
     plan: PlanInfo;
     usage: UsageInfo;
     features: string[];
+    createdAt: string; // ISO Date of company creation
 }
 
 export const subscriptionService = {

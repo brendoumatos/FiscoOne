@@ -49,7 +49,23 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
 
     const canIssueInvoice = () => {
         if (!data) return false;
+
+        // 1. Enterprise / Unlimited
         if (data.plan.limit === -1) return true;
+
+        // 2. Free Plan Expiration Rule (2 Months)
+        if (data.plan.code === 'FREE') {
+            const createdAt = new Date(data.createdAt); // Assuming data includes createdAt or we fetch it
+            const sixtyDaysAgo = new Date();
+            sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+
+            if (createdAt < sixtyDaysAgo) {
+                console.warn("Free plan expired");
+                return false; // Expired
+            }
+        }
+
+        // 3. Usage Limit
         return data.usage.invoices < data.plan.limit;
     };
 

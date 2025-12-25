@@ -387,15 +387,15 @@ export default function LandingPage() {
                             <ul className="space-y-4 mb-8 flex-1">
                                 <li className="flex items-start gap-3 text-sm text-slate-600">
                                     <CheckCircle className="w-5 h-5 text-emerald-500 shrink-0" />
-                                    <span>Até <strong>2 Notas Fiscais</strong> por CNPJ (Vitalício)</span>
+                                    <span>Válido por <strong>2 Meses</strong> (Degustação)</span>
+                                </li>
+                                <li className="flex items-start gap-3 text-sm text-slate-600">
+                                    <CheckCircle className="w-5 h-5 text-emerald-500 shrink-0" />
+                                    <span>Até <strong>4 Notas Fiscais</strong> no total</span>
                                 </li>
                                 <li className="flex items-start gap-3 text-sm text-slate-600">
                                     <CheckCircle className="w-5 h-5 text-emerald-500 shrink-0" />
                                     <span>Acesso Básico ao Dashboard</span>
-                                </li>
-                                <li className="flex items-start gap-3 text-sm text-slate-600">
-                                    <CheckCircle className="w-5 h-5 text-emerald-500 shrink-0" />
-                                    <span>Suporte via Email</span>
                                 </li>
                             </ul>
                             <Link to="/auth/signup?plan=FREE" className="mt-auto">
