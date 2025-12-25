@@ -14,8 +14,8 @@ import { useAuth } from "@/contexts/AuthContext";
 
 import { FinancialReadinessWidget } from "@/components/dashboard/FinancialReadinessWidget";
 import { readinessService } from "@/services/readiness";
-import { useSubscription } from "@/contexts/SubscriptionContext";
 import { PlanBadge } from "@/components/dashboard/PlanBadge";
+import { PlanShield } from "@/components/common/PlanShield";
 import { UsageWidget } from "@/components/dashboard/UsageWidget";
 import { AnnualUpsell } from "@/components/dashboard/AnnualUpsell";
 import { PricingInsight } from "@/components/dashboard/PricingInsight";
@@ -51,6 +51,10 @@ export default function Dashboard() {
         { label: "Conciliar", description: "Importar extrato OFX", icon: Activity, color: "bg-emerald-500", onClick: () => navigate('/dashboard/finance') },
     ];
 
+    const usageNearLimit = subscription && subscription.plan.limit > 0
+        ? subscription.usage.invoices / subscription.plan.limit >= 0.75
+        : false;
+
     const chartData = [
         { name: 'Jan', receita: 4000, despesas: 2400 },
         { name: 'Fev', receita: 3000, despesas: 1398 },
@@ -64,12 +68,19 @@ export default function Dashboard() {
         <div className="space-y-8 animate-in fade-in duration-500 pb-20">
             {/* Header */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div>
-                    <h2 className="text-3xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-                        Visão Geral
-                        {subscription && <PlanBadge planCode={subscription.plan.code} planName={subscription.plan.name} />}
-                    </h2>
-                    <p className="text-slate-500">Bem-vindo de volta, {currentCompany?.tradeName || "Empresa"}.</p>
+                <div className="space-y-2 w-full">
+                    <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                        <div>
+                            <h2 className="text-3xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
+                                Visão Geral
+                                {subscription && <PlanBadge planCode={subscription.plan.code} planName={subscription.plan.name} />}
+                            </h2>
+                            <p className="text-slate-500">Bem-vindo de volta, {currentCompany?.tradeName || "Empresa"}.</p>
+                        </div>
+                        <div className="min-w-[260px]">
+                            <PlanShield />
+                        </div>
+                    </div>
                 </div>
                 <div className="flex items-center gap-2">
                     {scoreData && (
@@ -101,6 +112,20 @@ export default function Dashboard() {
                     )}
 
                     <PricingInsight />
+
+                    {usageNearLimit && (
+                        <Card className="border-emerald-200 bg-emerald-50/60">
+                            <CardHeader className="pb-2">
+                                <CardTitle className="text-sm text-emerald-800">Proteção quase no limite</CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-2 text-emerald-900">
+                                <p className="text-sm">Seu escudo fiscal está em {Math.round((subscription!.usage.invoices / subscription!.plan.limit) * 100)}% do limite de notas.</p>
+                                <Button size="sm" onClick={() => navigate('/dashboard/settings?tab=billing')} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+                                    Reforçar escudo (upgrade)
+                                </Button>
+                            </CardContent>
+                        </Card>
+                    )}
 
                     {readiness && (
                         <FinancialReadinessWidget

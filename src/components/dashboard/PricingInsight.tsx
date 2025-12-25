@@ -2,11 +2,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { pricingService } from "@/services/pricing";
 import { useQuery } from "@tanstack/react-query";
 import { Lightbulb, TrendingUp } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 export function PricingInsight() {
+    const { currentCompany } = useAuth();
     const { data } = useQuery({
-        queryKey: ['pricing-insight'],
-        queryFn: () => pricingService.getInsight()
+        queryKey: ['pricing-insight', currentCompany?.id],
+        queryFn: () => currentCompany ? pricingService.getInsight(currentCompany.id) : null,
+        enabled: !!currentCompany
     });
 
     if (!data) return null;

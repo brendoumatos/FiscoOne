@@ -7,8 +7,8 @@ export interface PricingInsight {
 }
 
 export const pricingService = {
-    async getInsight(): Promise<PricingInsight | null> {
-        const response = await api.get('/pricing/insight');
+    async getInsight(companyId: string): Promise<PricingInsight | null> {
+        const response = await api.get(`/pricing/${companyId}/insight`);
         return response.data;
     }
 }

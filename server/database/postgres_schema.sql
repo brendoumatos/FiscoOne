@@ -16,6 +16,19 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 
+-- Sessions (Refresh Tokens)
+CREATE TABLE IF NOT EXISTS sessions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    refresh_token TEXT NOT NULL UNIQUE,
+    expires_at TIMESTAMP NOT NULL,
+    revoked BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires_at);
+
 -- 2. Companies Table
 CREATE TABLE IF NOT EXISTS companies (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -272,11 +285,18 @@ CREATE TABLE IF NOT EXISTS usage_counters (
     UNIQUE(company_id, metric_code, period_start)
 );
 
--- 18. Billing Events (Placeholder)
+-- 18. Billing Events
 CREATE TABLE IF NOT EXISTS billing_events (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     company_id UUID NOT NULL,
-    event_type VARCHAR(50), -- UPGRADE, DOWNGRADE, PAYMENT_FAILED
+    event_type VARCHAR(50) NOT NULL, -- UPGRADE, DOWNGRADE, PAYMENT_FAILED
+    details_json JSONB,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_billing_company FOREIGN KEY (company_id) REFERENCES companies(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_billing_company ON billing_events(company_id);
+
 -- 19. Referral System
 CREATE TABLE IF NOT EXISTS referral_codes (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

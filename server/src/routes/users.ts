@@ -15,9 +15,15 @@ router.post('/:companyId/users', requireRole(['OWNER']), async (req: AuthRequest
     if (!userId) return res.status(400).json({ message: 'userId obrigatório' });
 
     // Entitlement: seat limit
-    const entitlement = await subscriptionService.checkEntitlement(companyId, 'ADD_COLLABORATOR');
+    const entitlement = await subscriptionService.checkEntitlement(companyId, 'ADD_COLLABORATOR', { req });
     if (!entitlement.allowed) {
-        return res.status(403).json({ message: entitlement.reason || 'Limite de assentos atingido' });
+        return res.status(403).json({
+            message: entitlement.reason || 'Limite de assentos atingido',
+            code: 'ENTITLEMENT_DENIED',
+            upgrade_suggestion: entitlement.upgrade_suggestion,
+            current_usage: entitlement.current_usage,
+            limit: entitlement.limit
+        });
     }
 
     const client = await pool.connect();

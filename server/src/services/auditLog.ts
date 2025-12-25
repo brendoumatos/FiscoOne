@@ -9,7 +9,8 @@ export type AuditAction =
     | 'USER_REMOVED'
     | 'COMPANY_SETTINGS_UPDATED'
     | 'ROLE_CHANGED'
-    | 'SUBSCRIPTION_CHANGED';
+    | 'SUBSCRIPTION_CHANGED'
+    | 'ENTITLEMENT_DENIED';
 
 export type EntityType =
     | 'INVOICE'

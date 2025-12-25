@@ -59,11 +59,14 @@ router.post('/:companyId', requireRole(PERMISSIONS.INVOICE_WRITE), async (req: A
         await storageService.saveFile(filePath, fakeXmlContent);
 
         // Subscription & Entitlement Check
-        const entitlement = await subscriptionService.checkEntitlement(companyId, 'ISSUE_INVOICE');
+        const entitlement = await subscriptionService.checkEntitlement(companyId, 'ISSUE_INVOICE', { req });
         if (!entitlement.allowed) {
             return res.status(403).json({
                 message: entitlement.reason,
-                code: 'LIMIT_EXCEEDED'
+                code: 'ENTITLEMENT_DENIED',
+                upgrade_suggestion: entitlement.upgrade_suggestion,
+                current_usage: entitlement.current_usage,
+                limit: entitlement.limit
             });
         }
 
@@ -119,9 +122,13 @@ router.post('/:companyId/:invoiceId/cancel', requireRole(PERMISSIONS.INVOICE_CAN
     const { companyId, invoiceId } = req.params;
 
     try {
-        const entitlement = await subscriptionService.checkEntitlement(companyId, 'CANCEL_INVOICE');
+        const entitlement = await subscriptionService.checkEntitlement(companyId, 'CANCEL_INVOICE', { req });
         if (!entitlement.allowed) {
-            return res.status(403).json({ message: entitlement.reason || 'Plano não permite cancelar notas' });
+            return res.status(403).json({
+                message: entitlement.reason || 'Plano não permite cancelar notas',
+                code: 'ENTITLEMENT_DENIED',
+                upgrade_suggestion: entitlement.upgrade_suggestion
+            });
         }
 
         const result = await pool.query(

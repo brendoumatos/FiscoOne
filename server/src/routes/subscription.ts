@@ -14,8 +14,8 @@ router.get('/:companyId/current', requireRole(PERMISSIONS.COMPANY_SETTINGS), asy
         const sub = await subscriptionService.getSubscription(companyId);
         if (!sub) return res.json(null); // Or default
 
-        // Helper to get features and usage
-        const features = await subscriptionService.getFeatures(sub.plan_id);
+        const planMeta = subscriptionService.getPlanMeta(sub.plan_code);
+        const features = await subscriptionService.getFeatures(sub.plan_id, sub.plan_code);
         const { usageService } = await import('../services/usage');
         const invoicesUsed = await usageService.getCurrentUsage(companyId, 'INVOICES_ISSUED');
 
@@ -23,8 +23,11 @@ router.get('/:companyId/current', requireRole(PERMISSIONS.COMPANY_SETTINGS), asy
             plan: {
                 name: sub.plan_name,
                 code: sub.plan_code,
-                limit: sub.invoice_limit,
-                cycle: sub.renewal_cycle // Added cycle
+                limit: planMeta?.invoiceLimit ?? sub.invoice_limit,
+                cycle: sub.renewal_cycle,
+                price: planMeta?.price ?? null,
+                extraInvoicePrice: planMeta?.extraInvoicePrice ?? null,
+                extraSeatPrice: planMeta?.extraSeatPrice ?? null
             },
             usage: {
                 invoices: invoicesUsed
@@ -32,7 +35,7 @@ router.get('/:companyId/current', requireRole(PERMISSIONS.COMPANY_SETTINGS), asy
             features,
             createdAt: sub.start_date || sub.created_at,
             expirationDate: sub.expiration_date || null,
-            seatLimit: sub.seat_limit,
+            seatLimit: planMeta?.seatLimit ?? sub.seat_limit,
             currentCollaborators: sub.current_collaborators
         });
     } catch (error) {

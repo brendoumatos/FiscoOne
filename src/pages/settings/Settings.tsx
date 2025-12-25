@@ -17,6 +17,7 @@ import { CertificateManager } from "@/components/settings/CertificateManager";
 import { useTheme } from "@/contexts/ThemeContext";
 import { Moon, User } from "lucide-react";
 import { UserProfileSettings } from "@/components/settings/UserProfileSettings";
+import { PlanShield } from "@/components/common/PlanShield";
 
 export default function Settings() {
     const { toast } = useToast();
@@ -62,9 +63,14 @@ export default function Settings() {
 
     return (
         <div className="space-y-6 pb-20 animate-in fade-in duration-500">
-            <div>
-                <h2 className="text-3xl font-bold tracking-tight text-gray-900">Configurações</h2>
-                <p className="text-muted-foreground">Gerencie sua empresa, time e integrações.</p>
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                <div>
+                    <h2 className="text-3xl font-bold tracking-tight text-gray-900">Configurações</h2>
+                    <p className="text-muted-foreground">Gerencie sua empresa, time e integrações.</p>
+                </div>
+                <div className="min-w-[260px]">
+                    <PlanShield />
+                </div>
             </div>
 
             <Tabs defaultValue="profile" className="space-y-4">

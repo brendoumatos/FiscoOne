@@ -28,10 +28,13 @@ import { Check, ChevronsUpDown, PlusCircle } from "lucide-react";
 import { BrandEmblem, PoweredByBadge } from "@/components/common/BrandEmblem";
 import { BrandPendant } from "@/components/common/BrandPendant";
 import { UserNav } from "@/components/common/UserNav";
+import { PlanShield } from "@/components/common/PlanShield";
+import { useSubscription } from "@/contexts/SubscriptionContext";
 
 export default function MainLayout() {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const { logout, user, currentCompany, companies, switchCompany } = useAuth();
+    const { data: subscription } = useSubscription();
     const location = useLocation();
 
     const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
@@ -66,7 +69,7 @@ export default function MainLayout() {
             >
                 {/* Brand */}
                 {/* Brand / Company Switcher */}
-                <div className="h-20 flex items-center px-4 border-b border-white/10">
+                <div className="h-24 flex items-center px-4 border-b border-white/10">
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <Button variant="ghost" className="w-full justify-start px-2 h-14 hover:bg-white/5 data-[state=open]:bg-white/5 transition-all group">
@@ -76,7 +79,11 @@ export default function MainLayout() {
                                     </div>
                                     <div className="flex flex-col items-start overflow-hidden flex-1">
                                         <span className="text-sm font-bold tracking-tight leading-none text-white truncate w-full text-left">{currentCompany?.name}</span>
-                                        <span className="text-[10px] text-emerald-400 font-medium uppercase tracking-wider">Plano {currentCompany?.plan}</span>
+                                        {subscription ? (
+                                            <span className="text-[10px] text-emerald-300 font-semibold uppercase tracking-wider">Escudo {subscription.plan.name}</span>
+                                        ) : (
+                                            <span className="text-[10px] text-emerald-400 font-medium uppercase tracking-wider">Plano ativo</span>
+                                        )}
                                     </div>
                                     <ChevronsUpDown className="ml-auto h-4 w-4 text-gray-400 opacity-50" />
                                 </div>
@@ -208,6 +215,11 @@ export default function MainLayout() {
                                 className="pl-4 pr-10 py-2 bg-gray-100 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 w-64"
                             />
                         </div>
+                        {subscription && (
+                            <div className="hidden xl:block min-w-[260px]">
+                                <PlanShield />
+                            </div>
+                        )}
                         <Button className="rounded-full bg-primary hover:bg-primary/90 text-white px-6 hidden sm:flex">
                             <PlusIcon className="w-4 h-4 mr-2" />
                             Novo

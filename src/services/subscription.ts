@@ -23,8 +23,8 @@ export interface SubscriptionData {
 
 export const subscriptionService = {
     async getCurrentSubscription(companyId?: string): Promise<SubscriptionData> {
-        const params = companyId ? { companyId } : {};
-        const response = await api.get('/subscriptions/current', { params });
+        if (!companyId) throw new Error('companyId is required to fetch subscription');
+        const response = await api.get(`/subscriptions/${companyId}/current`);
         return response.data;
     }
 };

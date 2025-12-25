@@ -126,3 +126,143 @@ CREATE TABLE audit_logs (
     ip_address TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- 6.0 Planos, Assinaturas e Entitlements
+
+CREATE TYPE subscription_status AS ENUM ('ACTIVE', 'PAUSED', 'CANCELLED', 'EXPIRED');
+CREATE TYPE billing_cycle AS ENUM ('MONTHLY', 'ANNUAL');
+
+CREATE TABLE plans (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    code TEXT UNIQUE NOT NULL, -- PLAN_START, PLAN_ESSENTIAL, PLAN_PROFESSIONAL, PLAN_ENTERPRISE
+    name TEXT NOT NULL,
+    price_monthly NUMERIC(10,2),
+    invoice_limit INTEGER DEFAULT -1, -- -1 = ilimitado
+    seat_limit INTEGER DEFAULT -1, -- -1 = ilimitado
+    extra_invoice_price NUMERIC(10,2),
+    extra_seat_price NUMERIC(10,2),
+    is_custom BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE plan_features (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    plan_id UUID REFERENCES plans(id) ON DELETE CASCADE,
+    feature_code TEXT NOT NULL, -- e.g., ISSUE_INVOICE, DASHBOARD_FULL, RECURRENT_INVOICES
+    is_enabled BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS plan_features_unique ON plan_features(plan_id, feature_code);
+
+CREATE TABLE subscriptions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    company_id UUID REFERENCES companies(id) ON DELETE CASCADE,
+    plan_id UUID REFERENCES plans(id),
+    status subscription_status DEFAULT 'ACTIVE',
+    renewal_cycle billing_cycle DEFAULT 'MONTHLY',
+    start_date DATE DEFAULT CURRENT_DATE,
+    end_date DATE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    CONSTRAINT unique_active_subscription UNIQUE (company_id)
+);
+
+CREATE TABLE subscription_usage (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    company_id UUID REFERENCES companies(id) ON DELETE CASCADE,
+    metric_code TEXT NOT NULL, -- INVOICES_MONTHLY, SEATS_ACTIVE
+    period_start DATE NOT NULL,
+    period_end DATE NOT NULL,
+    used_value INTEGER DEFAULT 0,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE (company_id, metric_code, period_start)
+);
+
+CREATE TABLE service_credits (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    company_id UUID REFERENCES companies(id) ON DELETE CASCADE,
+    credit_type TEXT NOT NULL, -- EXTRA_INVOICE, EXTRA_SEAT
+    remaining_units INTEGER NOT NULL,
+    expires_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE company_seats (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    company_id UUID REFERENCES companies(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    seat_role TEXT DEFAULT 'COLLABORATOR',
+    status TEXT DEFAULT 'ACTIVE',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE (company_id, user_id)
+);
+
+-- Seed básico de planos (idempotente)
+INSERT INTO plans (code, name, price_monthly, invoice_limit, seat_limit, extra_invoice_price, extra_seat_price, is_custom)
+VALUES
+    ('PLAN_START', 'Start', 8.99, 2, 1, NULL, NULL, FALSE),
+    ('PLAN_ESSENTIAL', 'Essencial', 49.00, 5, 1, 6.00, NULL, FALSE),
+    ('PLAN_PROFESSIONAL', 'Profissional', 149.00, 50, 3, 4.00, 19.00, FALSE),
+    ('PLAN_ENTERPRISE', 'Enterprise', 349.00, -1, -1, NULL, NULL, TRUE)
+ON CONFLICT (code) DO UPDATE SET
+    name = EXCLUDED.name,
+    price_monthly = EXCLUDED.price_monthly,
+    invoice_limit = EXCLUDED.invoice_limit,
+    seat_limit = EXCLUDED.seat_limit,
+    extra_invoice_price = EXCLUDED.extra_invoice_price,
+    extra_seat_price = EXCLUDED.extra_seat_price,
+    is_custom = EXCLUDED.is_custom,
+    updated_at = NOW();
+
+-- Seed de features por plano (merge simples)
+WITH pf AS (
+    SELECT p.id, p.code FROM plans p
+)
+INSERT INTO plan_features (plan_id, feature_code, is_enabled)
+SELECT id, feature_code, TRUE FROM (
+    VALUES
+        ('PLAN_START', 'ISSUE_INVOICE_BASIC'),
+        ('PLAN_START', 'DASHBOARD_BASIC'),
+        ('PLAN_START', 'FISCAL_ALERTS_INFO'),
+        ('PLAN_START', 'AUDIT_ENABLED'),
+
+        ('PLAN_ESSENTIAL', 'ISSUE_INVOICE'),
+        ('PLAN_ESSENTIAL', 'DASHBOARD_FULL'),
+        ('PLAN_ESSENTIAL', 'TAX_ESTIMATION'),
+        ('PLAN_ESSENTIAL', 'TAX_CALENDAR'),
+        ('PLAN_ESSENTIAL', 'WHATSAPP_ALERTS'),
+        ('PLAN_ESSENTIAL', 'ADVISOR_ENGINE'),
+
+        ('PLAN_PROFESSIONAL', 'ISSUE_INVOICE'),
+        ('PLAN_PROFESSIONAL', 'DASHBOARD_FULL'),
+        ('PLAN_PROFESSIONAL', 'TAX_ESTIMATION'),
+        ('PLAN_PROFESSIONAL', 'TAX_CALENDAR'),
+        ('PLAN_PROFESSIONAL', 'WHATSAPP_ALERTS'),
+        ('PLAN_PROFESSIONAL', 'ADVISOR_ENGINE'),
+        ('PLAN_PROFESSIONAL', 'RECURRENT_INVOICES'),
+        ('PLAN_PROFESSIONAL', 'FINANCIAL_HEALTH'),
+        ('PLAN_PROFESSIONAL', 'DOCUMENT_MANAGEMENT'),
+        ('PLAN_PROFESSIONAL', 'AUDIT_VISIBLE'),
+        ('PLAN_PROFESSIONAL', 'FISCAL_SCORE'),
+        ('PLAN_PROFESSIONAL', 'READINESS_INDEX'),
+
+        ('PLAN_ENTERPRISE', 'ISSUE_INVOICE'),
+        ('PLAN_ENTERPRISE', 'DASHBOARD_FULL'),
+        ('PLAN_ENTERPRISE', 'TAX_ESTIMATION'),
+        ('PLAN_ENTERPRISE', 'TAX_CALENDAR'),
+        ('PLAN_ENTERPRISE', 'WHATSAPP_ALERTS'),
+        ('PLAN_ENTERPRISE', 'ADVISOR_ENGINE'),
+        ('PLAN_ENTERPRISE', 'RECURRENT_INVOICES'),
+        ('PLAN_ENTERPRISE', 'FINANCIAL_HEALTH'),
+        ('PLAN_ENTERPRISE', 'DOCUMENT_MANAGEMENT'),
+        ('PLAN_ENTERPRISE', 'AUDIT_VISIBLE'),
+        ('PLAN_ENTERPRISE', 'FISCAL_SCORE'),
+        ('PLAN_ENTERPRISE', 'READINESS_INDEX'),
+        ('PLAN_ENTERPRISE', 'DEDICATED_ACCOUNTANT'),
+        ('PLAN_ENTERPRISE', 'SLA_SUPPORT'),
+        ('PLAN_ENTERPRISE', 'ADVANCED_VALIDATIONS')
+) seed(plan_code, feature_code)
+JOIN pf ON pf.code = seed.plan_code
+ON CONFLICT DO NOTHING;
