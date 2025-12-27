@@ -7,6 +7,18 @@ export const companyService = {
         return response.data;
     },
 
+    async createOnboardingCompany(payload: {
+        cnpj: string;
+        legalName: string;
+        tradeName: string;
+        taxRegime: string;
+        address?: { city?: string; state?: string; zipCode?: string; street?: string; number?: string; neighborhood?: string };
+        planCode?: string;
+    }): Promise<Company> {
+        const response = await api.post('/onboarding/company', payload);
+        return response.data;
+    },
+
     async getCompanies(): Promise<Company[]> {
         const response = await api.get('/companies');
         return response.data;

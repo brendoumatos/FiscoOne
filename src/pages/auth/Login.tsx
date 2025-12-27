@@ -14,6 +14,7 @@ import { BrandEmblem } from "@/components/common/BrandEmblem";
 export default function Login() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+    const [stayLogged, setStayLogged] = useState(true);
     const [error, setError] = useState("");
     const { login, loginAsDemo, isLoading } = useAuth();
     const navigate = useNavigate();
@@ -23,7 +24,7 @@ export default function Login() {
         e.preventDefault();
         setError("");
         try {
-            await login({ email, password });
+            await login({ email, password }, { remember: stayLogged });
             navigate("/dashboard");
         } catch (err) {
             setError("Credenciais inválidas. Tente novamente.");
@@ -121,6 +122,19 @@ export default function Login() {
                                 {error}
                             </div>
                         )}
+
+                        <div className="flex items-center justify-between text-sm text-slate-600">
+                            <label className="flex items-center gap-2">
+                                <input
+                                    type="checkbox"
+                                    className="h-4 w-4 rounded border-slate-300"
+                                    checked={stayLogged}
+                                    onChange={(e) => setStayLogged(e.target.checked)}
+                                />
+                                <span>Manter conectado nesta máquina</span>
+                            </label>
+                            <span className="text-xs text-slate-400">Perguntamos para evitar sessões indesejadas.</span>
+                        </div>
 
                         <Button className="w-full h-11 text-base shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30 transition-all duration-300" type="submit" disabled={isLoading}>
                             {isLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <span className="flex items-center">Acessar Painel <ArrowRight className="ml-2 h-4 w-4" /></span>}

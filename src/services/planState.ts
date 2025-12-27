@@ -34,7 +34,10 @@ export interface PlanState {
 
 export const planStateService = {
     async getPlanState(): Promise<PlanState> {
-        const res = await api.get('/companies/plan-state');
+        const res = await api.get('/companies/plan-state', {
+            params: { noCache: 1 },
+            headers: { 'x-no-cache': '1' }
+        });
         return res.data as PlanState;
     }
 };

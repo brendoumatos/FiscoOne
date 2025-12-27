@@ -3,14 +3,16 @@ import { ShieldCheck, ShieldAlert, Shield, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { usePlanState } from "@/contexts/PlanStateContext";
+import { useAuth } from "@/contexts/AuthContext";
 
-type ShieldTone = "ACTIVE" | "WARNING" | "BLOCKED" | "GRACE";
+type ShieldTone = "ACTIVE" | "WARNING" | "BLOCKED" | "GRACE" | "EXPIRED";
 
 const TONE_META: Record<ShieldTone, { bg: string; border: string; text: string; accent: string; label: string; icon: any }> = {
     ACTIVE: { bg: "bg-emerald-50", border: "border-emerald-200", text: "text-emerald-900", accent: "text-emerald-600", label: "Plano ativo", icon: ShieldCheck },
     WARNING: { bg: "bg-amber-50", border: "border-amber-200", text: "text-amber-900", accent: "text-amber-600", label: "Aproximando do limite", icon: ShieldAlert },
     GRACE: { bg: "bg-orange-50", border: "border-orange-200", text: "text-orange-900", accent: "text-orange-600", label: "Pagamento pendente", icon: AlertTriangle },
-    BLOCKED: { bg: "bg-red-50", border: "border-red-200", text: "text-red-900", accent: "text-red-600", label: "Ação bloqueada", icon: ShieldAlert }
+    BLOCKED: { bg: "bg-red-50", border: "border-red-200", text: "text-red-900", accent: "text-red-600", label: "Ação bloqueada", icon: ShieldAlert },
+    EXPIRED: { bg: "bg-red-50", border: "border-red-200", text: "text-red-900", accent: "text-red-600", label: "Ação bloqueada", icon: ShieldAlert }
 };
 
 const CTA_LABEL: Record<string, string> = {
@@ -26,17 +28,18 @@ const CTA_ROUTE: Record<string, string> = {
 };
 
 export function PlanShield({ className }: { className?: string }) {
-    const { data, status, usage, limits, cta, isLoading } = usePlanState();
+    const { data, status, usage, limits, cta, isLoading, refresh } = usePlanState();
+    const { isDemo } = useAuth();
 
     const tone: ShieldTone = useMemo(() => {
         const st = (data?.status || status || "ACTIVE").toUpperCase() as ShieldTone;
-        if (st === "WARNING" || st === "BLOCKED" || st === "GRACE" || st === "ACTIVE") return st;
+        if (st === "WARNING" || st === "BLOCKED" || st === "GRACE" || st === "ACTIVE" || st === "EXPIRED") return st;
         return "ACTIVE";
     }, [data?.status, status]);
 
     const meta = TONE_META[tone];
     const Icon = meta.icon || Shield;
-    const isLocked = tone === "BLOCKED" || tone === "GRACE";
+    const isLocked = tone === "BLOCKED" || tone === "GRACE" || tone === "EXPIRED";
 
     const invoicesLimit = usage?.invoices.limit ?? limits?.invoices ?? null;
     const invoicesUsed = usage?.invoices.used ?? 0;
@@ -69,6 +72,22 @@ export function PlanShield({ className }: { className?: string }) {
                         )}
                     </div>
                 </div>
+                {isDemo && (
+                    <select
+                        aria-label="Alternar plano demo"
+                        className="border border-slate-200 rounded-md text-xs px-2 py-1 bg-white"
+                        defaultValue={data?.plan.code || "DEMO"}
+                        onChange={(e) => {
+                            localStorage.setItem("fiscoone_demo_plan_override", e.target.value);
+                            void refresh();
+                        }}
+                    >
+                        <option value="START">Start</option>
+                        <option value="ESSENTIAL">Essential</option>
+                        <option value="PRO">Pro</option>
+                        <option value="ENTERPRISE">Enterprise</option>
+                    </select>
+                )}
                 {cta && (
                     <Button
                         size="sm"

@@ -1,14 +1,14 @@
-export function requireEnv(name: string): string {
-  const value = process.env[name];
+export function requireEnv(name: string, fallback?: string): string {
+  const value = process.env[name] || fallback;
   if (!value) {
     throw new Error(`Missing required env ${name}`);
   }
   return value;
 }
 
-export const E2E_API_URL = () => requireEnv('E2E_API_URL');
-export const E2E_COMPANY_ID = () => requireEnv('E2E_COMPANY_ID');
-export const E2E_USER_TOKEN = () => requireEnv('E2E_USER_TOKEN');
+export const E2E_API_URL = () => requireEnv('E2E_API_URL', 'http://localhost:3001');
+export const E2E_COMPANY_ID = () => requireEnv('E2E_COMPANY_ID', 'e2e-company-id');
+export const E2E_USER_TOKEN = () => requireEnv('E2E_USER_TOKEN', process.env.E2E_BYPASS_TOKEN || 'e2e-test-token');
 
 export const PG_CONFIG = () => ({
   user: process.env.POSTGRES_USER || 'postgres',

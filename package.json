@@ -8,7 +8,8 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "e2e:auth": "node tests/e2e/utils/write-storage-state.cjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

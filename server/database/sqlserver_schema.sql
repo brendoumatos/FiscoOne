@@ -30,26 +30,51 @@ CREATE TABLE companies (
 CREATE INDEX idx_companies_owner ON companies(owner_id);
 CREATE INDEX idx_companies_cnpj ON companies(cnpj);
 
+-- Accountants (partner directory)
+CREATE TABLE accountants (
+    id UNIQUEIDENTIFIER NOT NULL PRIMARY KEY DEFAULT NEWID(),
+    name NVARCHAR(255) NOT NULL,
+    email NVARCHAR(255) NOT NULL UNIQUE,
+    domain NVARCHAR(255) NULL,
+    created_at DATETIME2(3) NOT NULL DEFAULT SYSUTCDATETIME()
+);
+
 -- Plans
 CREATE TABLE plans (
     id UNIQUEIDENTIFIER NOT NULL PRIMARY KEY DEFAULT NEWID(),
     code NVARCHAR(100) NOT NULL UNIQUE,
     name NVARCHAR(255) NOT NULL,
-    description NVARCHAR(1024),
+    description_pt_br NVARCHAR(1024),
     price_monthly DECIMAL(18,2) NOT NULL,
     price_yearly DECIMAL(18,2) NOT NULL,
+    invoice_limit INT NOT NULL DEFAULT -1,
+    seat_limit INT NOT NULL DEFAULT -1,
+    accountant_limit INT NOT NULL DEFAULT -1,
+    extra_invoice_price DECIMAL(18,2) NULL,
+    extra_seat_price DECIMAL(18,2) NULL,
+    is_custom BIT NOT NULL DEFAULT 0,
     is_active BIT NOT NULL DEFAULT 1,
-    created_at DATETIME2(3) NOT NULL DEFAULT SYSUTCDATETIME()
+    created_at DATETIME2(3) NOT NULL DEFAULT SYSUTCDATETIME(),
+    updated_at DATETIME2(3) NOT NULL DEFAULT SYSUTCDATETIME()
+);
+
+CREATE TABLE plan_features (
+    id UNIQUEIDENTIFIER NOT NULL PRIMARY KEY DEFAULT NEWID(),
+    plan_id UNIQUEIDENTIFIER NOT NULL REFERENCES plans(id),
+    feature_code NVARCHAR(100) NOT NULL,
+    is_enabled BIT NOT NULL DEFAULT 1,
+    created_at DATETIME2(3) NOT NULL DEFAULT SYSUTCDATETIME(),
+    UNIQUE(plan_id, feature_code)
 );
 
 -- Plan entitlements
 CREATE TABLE plan_entitlements (
     id UNIQUEIDENTIFIER NOT NULL PRIMARY KEY DEFAULT NEWID(),
-    plan_id UNIQUEIDENTIFIER NOT NULL REFERENCES plans(id),
+    plan_code NVARCHAR(100) NOT NULL REFERENCES plans(code),
     entitlement_key NVARCHAR(100) NOT NULL,
     limit_value INT NULL,
     metadata NVARCHAR(MAX) NULL CHECK (metadata IS NULL OR ISJSON(metadata)=1),
-    UNIQUE(plan_id, entitlement_key)
+    UNIQUE(plan_code, entitlement_key)
 );
 
 -- Plan versions
@@ -249,6 +274,40 @@ CREATE TABLE marketplace_items (
     price DECIMAL(18,2) NOT NULL,
     metadata NVARCHAR(MAX) NULL CHECK (metadata IS NULL OR ISJSON(metadata)=1),
     active BIT NOT NULL DEFAULT 1,
+    created_at DATETIME2(3) NOT NULL DEFAULT SYSUTCDATETIME()
+);
+
+CREATE TABLE marketplace_providers (
+    id UNIQUEIDENTIFIER NOT NULL PRIMARY KEY DEFAULT NEWID(),
+    company_id UNIQUEIDENTIFIER NOT NULL REFERENCES companies(id),
+    bio NVARCHAR(MAX) NULL,
+    specialties NVARCHAR(MAX) NULL CHECK (specialties IS NULL OR ISJSON(specialties)=1),
+    verified BIT NOT NULL DEFAULT 0,
+    created_at DATETIME2(3) NOT NULL DEFAULT SYSUTCDATETIME()
+);
+
+CREATE TABLE marketplace_services (
+    id UNIQUEIDENTIFIER NOT NULL PRIMARY KEY DEFAULT NEWID(),
+    provider_id UNIQUEIDENTIFIER NOT NULL REFERENCES marketplace_providers(id),
+    title NVARCHAR(255) NOT NULL,
+    description NVARCHAR(MAX) NULL,
+    category NVARCHAR(100) NULL,
+    active BIT NOT NULL DEFAULT 1,
+    created_at DATETIME2(3) NOT NULL DEFAULT SYSUTCDATETIME()
+);
+
+CREATE TABLE marketplace_contacts (
+    id UNIQUEIDENTIFIER NOT NULL PRIMARY KEY DEFAULT NEWID(),
+    service_id UNIQUEIDENTIFIER NOT NULL REFERENCES marketplace_services(id),
+    interested_company_id UNIQUEIDENTIFIER NOT NULL REFERENCES companies(id),
+    message NVARCHAR(MAX) NOT NULL,
+    created_at DATETIME2(3) NOT NULL DEFAULT SYSUTCDATETIME()
+);
+
+CREATE TABLE marketplace_installations (
+    id UNIQUEIDENTIFIER NOT NULL PRIMARY KEY DEFAULT NEWID(),
+    app_id NVARCHAR(100) NOT NULL,
+    company_id UNIQUEIDENTIFIER NOT NULL REFERENCES companies(id),
     created_at DATETIME2(3) NOT NULL DEFAULT SYSUTCDATETIME()
 );
 

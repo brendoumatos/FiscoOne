@@ -12,7 +12,7 @@ interface AuthContextType {
     isAuthenticated: boolean;
     isLoading: boolean;
     isDemo: boolean;
-    login: (credentials: LoginCredentials) => Promise<void>;
+    login: (credentials: LoginCredentials, options?: { remember?: boolean }) => Promise<void>;
     loginAsDemo: (role?: 'CLIENT' | 'ACCOUNTANT') => Promise<void>;
     signup: (data: SignupData) => Promise<void>;
     logout: () => Promise<void>;
@@ -116,7 +116,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     useEffect(() => {
         const initAuth = async () => {
-            const storedUser = localStorage.getItem("fiscoone_user");
+            const storedUser = localStorage.getItem("fiscoone_user") || sessionStorage.getItem("fiscoone_session_user");
             const demoFlag = localStorage.getItem("fiscoone_demo_mode");
 
             if (demoFlag === "true") {
@@ -163,11 +163,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         initAuth();
     }, []);
 
-    const login = async (data: LoginCredentials) => {
+    const persistInSession = (userData: User, token: string) => {
+        sessionStorage.setItem("fiscoone_session_token", token);
+        sessionStorage.setItem("fiscoone_session_user", JSON.stringify(userData));
+        localStorage.removeItem("fiscoone_token");
+        localStorage.removeItem("fiscoone_user");
+    };
+
+    const login = async (data: LoginCredentials, options?: { remember?: boolean }) => {
         setIsLoading(true);
         try {
             const response = await authService.login(data);
-            authService.setSession(response.token, response.user); // Persist token and user
+            const remember = options?.remember !== false;
+            if (remember) {
+                authService.setSession(response.token, response.user); // Persist token and user
+            } else {
+                persistInSession(response.user, response.token);
+            }
+
             setUser(response.user);
             setIsDemo(false);
             localStorage.removeItem("fiscoone_demo_mode");
@@ -266,6 +279,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setCurrentCompany(null);
             localStorage.removeItem("fiscoone_demo_mode");
             localStorage.removeItem("fiscoone_current_company_id");
+            localStorage.removeItem("fiscoone_token");
+            localStorage.removeItem("fiscoone_user");
+            sessionStorage.removeItem("fiscoone_session_token");
+            sessionStorage.removeItem("fiscoone_session_user");
         } finally {
             setIsLoading(false);
         }

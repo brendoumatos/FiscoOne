@@ -10,8 +10,8 @@ export interface TimelineEvent {
 }
 
 export const timelineService = {
-    async getTimeline(type?: string): Promise<TimelineEvent[]> {
-        const params = type ? { type } : {};
+    async getTimeline(entity?: string): Promise<TimelineEvent[]> {
+        const params = entity ? { entity } : {};
         const response = await api.get('/timeline', { params });
         return response.data;
     }

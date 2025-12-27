@@ -68,10 +68,13 @@ function AdminProtectedRoute() {
 import { BrandingProvider } from "@/contexts/BrandingContext"
 import { SubscriptionProvider } from "@/contexts/SubscriptionContext"
 import { PlanStateProvider } from "@/contexts/PlanStateContext"
+import { AdminDebugProvider } from "@/contexts/AdminDebugContext"
 import TimelinePage from "@/pages/dashboard/timeline/index"
 import MarketplacePage from "@/pages/dashboard/marketplace/index"
 import AccountantSettings from "@/pages/dashboard/accountant/Settings"
 import ReferralDashboard from "@/pages/dashboard/referral/index"
+import CollaboratorsPage from "@/pages/dashboard/collaborators"
+import { RouteGuard } from "@/components/routing/RouteGuard"
 
 import AdminLayout from "@/layouts/AdminLayout"
 import AdminLogin from "@/pages/admin/AdminLogin"
@@ -93,11 +96,13 @@ function App() {
             <CertificateProvider>
               <AdminAuthProvider>
                 <AuthProvider>
-                  <PlanStateProvider>
-                    <SubscriptionProvider>
-                      <PlanBlockDialog />
+                  <AdminDebugProvider>
+                    <PlanStateProvider>
+                      <SubscriptionProvider>
+                        <PlanBlockDialog />
                       <Routes>
                         <Route path="/" element={<LandingPage />} />
+                        <Route path="*" element={<Navigate to="/" replace />} />
 
                         <Route path="/auth/login" element={<Login />} />
                         <Route path="/auth/signup" element={<Signup />} />
@@ -120,7 +125,7 @@ function App() {
                           <Route path="/onboarding" element={<OnboardingWizard />} />
 
                           {/* Main App - With Sidebar/Header */}
-                          <Route path="/dashboard" element={<MainLayout />}>
+                          <Route path="/dashboard" element={<RouteGuard><MainLayout /></RouteGuard>}>
                             <Route index element={<Dashboard />} />
                             <Route path="invoices" element={<InvoiceList />} />
                             <Route path="invoices/issue" element={<IssueInvoice />} />
@@ -131,6 +136,7 @@ function App() {
                             <Route path="recurrence" element={<RecurrenceList />} />
                             <Route path="expenses" element={<ExpenseList />} />
                             <Route path="partners" element={<PartnerMarketplace />} />
+                            <Route path="collaborators" element={<CollaboratorsPage />} />
                             <Route path="settings" element={<Settings />} />
 
                             {/* New Features */}

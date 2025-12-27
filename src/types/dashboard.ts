@@ -1,18 +1,26 @@
+export type AlertSeverity = "info" | "warning" | "critical";
+
+export interface DashboardAlert {
+    id: string;
+    message: string;
+    severity: AlertSeverity;
+    timestamp: string;
+    source?: string;
+    ctaLabel?: string;
+}
+
 export interface DashboardStats {
-    monthlyRevenue: number;
-    annualRevenue: number;
-    invoicesIssued: number;
-    pendingTaxes: number;
-    pendingTasks: number;
-    revenueHistory: Array<{
-        month: string;
-        amount: number;
-    }>;
+    invoicesCount: number;
+    invoicesBlocked: number;
+    taxesDue: number;
+    taxesOverdue: number;
+    alerts: DashboardAlert[];
+    lastUpdated?: string;
 }
 
 export interface ActivityItem {
     id: string;
-    type: 'INVOICE' | 'TAX' | 'SYSTEM';
+    type: "INVOICE" | "TAX" | "SYSTEM";
     description: string;
     timestamp: string;
 }

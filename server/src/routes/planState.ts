@@ -5,7 +5,7 @@ import { planStateService } from '../services/planState';
 import { sendError } from '../utils/errorCatalog';
 
 const cache = new Map<string, { ts: number; data: any }>();
-const TTL_MS = 30 * 1000;
+const TTL_MS = process.env.NODE_ENV === 'test' ? 0 : 30 * 1000;
 
 const router = protectedCompanyRouter();
 
@@ -13,8 +13,9 @@ router.get('/plan-state', async (req: AuthRequest, res: Response) => {
     try {
         const companyId = req.user?.companyId;
         const now = Date.now();
+        const skipCache = req.query?.noCache === '1' || req.headers['x-no-cache'] === '1';
         const cached = cache.get(companyId);
-        if (cached && now - cached.ts < TTL_MS) {
+        if (!skipCache && TTL_MS > 0 && cached && now - cached.ts < TTL_MS) {
             return res.json(cached.data);
         }
 
@@ -30,7 +31,9 @@ router.get('/plan-state', async (req: AuthRequest, res: Response) => {
             planCode: planState.planCode || planState.plan.code,
             limits: planState.limits
         };
-        cache.set(companyId, { ts: now, data: response });
+        if (TTL_MS > 0) {
+            cache.set(companyId, { ts: now, data: response });
+        }
         res.json(response);
     } catch (error: any) {
         console.error('Plan state error', error);

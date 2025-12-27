@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
-import { Building, Users, CreditCard, Bell, Code, Plus, Trash2, Copy, FileKey } from "lucide-react";
+import { Building, Users, CreditCard, Bell, Code, Plus, Trash2, Copy, FileKey, ShieldAlert, ShieldCheck, AlertTriangle, CheckCircle2, FileSpreadsheet } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { teamService } from "@/services/team";
 import { developerService } from "@/services/developer";
@@ -24,6 +24,7 @@ export default function Settings() {
     const { toast } = useToast();
     const queryClient = useQueryClient();
     const [inviteEmail, setInviteEmail] = useState("");
+    const [isEditingFiscal, setIsEditingFiscal] = useState(false);
 
     const { data: planState, usage, limits, status, cta, isLoading: isPlanLoading } = usePlanState();
 
@@ -60,9 +61,12 @@ export default function Settings() {
     const invoicesLimit = limits?.invoices ?? planState?.usage.invoices.limit ?? null;
     const seatsUsed = usage?.seats.used ?? planState?.usage.seats.used ?? 0;
     const seatsLimit = limits?.seats ?? planState?.usage.seats.limit ?? null;
+    const accountantsUsed = usage?.accountants?.used ?? planState?.usage.accountants?.used ?? 0;
+    const accountantsLimit = limits?.accountants ?? planState?.usage.accountants?.limit ?? null;
 
     const invoicePercent = invoicesLimit ? Math.min(100, (invoicesUsed / invoicesLimit) * 100) : 0;
     const seatPercent = seatsLimit ? Math.min(100, (seatsUsed / seatsLimit) * 100) : 0;
+    const accountantsPercent = accountantsLimit ? Math.min(100, (accountantsUsed / accountantsLimit) * 100) : 0;
     const seatBlocked = seatsLimit ? seatsUsed >= seatsLimit : false;
 
     const statusMeta: Record<string, { label: string; className: string }> = {
@@ -86,6 +90,10 @@ export default function Settings() {
     };
 
     const activeStatus = (status || planState?.status || 'ACTIVE').toUpperCase();
+    const isBlocked = activeStatus === 'BLOCKED' || activeStatus === 'EXPIRED';
+    const nearInvoices = invoicesLimit ? invoicesUsed / invoicesLimit >= 0.8 && invoicesUsed < invoicesLimit : false;
+    const nearSeats = seatsLimit ? seatsUsed / seatsLimit >= 0.8 && seatsUsed < seatsLimit : false;
+    const nearAccountants = accountantsLimit ? accountantsUsed / accountantsLimit >= 0.8 && accountantsUsed < accountantsLimit : false;
     const statusBadge = statusMeta[activeStatus] || statusMeta.ACTIVE;
     const ctaValue = cta || 'UPGRADE';
     const renewalLabel = planState?.expiration ? `Renova em ${new Date(planState.expiration).toLocaleDateString()}` : "Renovação automática";
@@ -107,6 +115,7 @@ export default function Settings() {
                     <TabsTrigger value="user" className="data-[state=active]:bg-white data-[state=active]:shadow-sm border border-transparent data-[state=active]:border-gray-200"><User className="mr-2 h-4 w-4" /> Meu Perfil</TabsTrigger>
                     <TabsTrigger value="profile" className="data-[state=active]:bg-white data-[state=active]:shadow-sm border border-transparent data-[state=active]:border-gray-200"><Building className="mr-2 h-4 w-4" /> Empresa</TabsTrigger>
                     <TabsTrigger value="certificate" className="data-[state=active]:bg-white data-[state=active]:shadow-sm border border-transparent data-[state=active]:border-gray-200"><FileKey className="mr-2 h-4 w-4" /> Certificado</TabsTrigger>
+                    <TabsTrigger value="fiscal" className="data-[state=active]:bg-white data-[state=active]:shadow-sm border border-transparent data-[state=active]:border-gray-200"><FileSpreadsheet className="mr-2 h-4 w-4" /> Fiscal</TabsTrigger>
                     <TabsTrigger value="team" className="data-[state=active]:bg-white data-[state=active]:shadow-sm border border-transparent data-[state=active]:border-gray-200"><Users className="mr-2 h-4 w-4" /> Time</TabsTrigger>
                     <TabsTrigger value="developer" className="data-[state=active]:bg-white data-[state=active]:shadow-sm border border-transparent data-[state=active]:border-gray-200"><Code className="mr-2 h-4 w-4" /> Desenvolvedor</TabsTrigger>
                     <TabsTrigger value="notifications" className="data-[state=active]:bg-white data-[state=active]:shadow-sm border border-transparent data-[state=active]:border-gray-200"><Bell className="mr-2 h-4 w-4" /> Notificações</TabsTrigger>
@@ -152,6 +161,71 @@ export default function Settings() {
 
                 <TabsContent value="certificate" className="space-y-4">
                     <CertificateManager />
+                </TabsContent>
+
+                <TabsContent value="fiscal" className="space-y-4">
+                    <Card className="shadow-sm">
+                        <CardHeader>
+                            <div className="flex items-center justify-between gap-3">
+                                <div>
+                                    <CardTitle>Perfil Fiscal</CardTitle>
+                                    <CardDescription>Resumo das configurações fiscais auditáveis.</CardDescription>
+                                </div>
+                                <Badge variant="outline" className="text-slate-700">{isBlocked ? "Somente leitura" : "Em edição"}</Badge>
+                            </div>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="grid gap-4 md:grid-cols-3">
+                                <div className="space-y-1">
+                                    <Label>Regime Tributário</Label>
+                                    <Input defaultValue="Simples Nacional" disabled={!isEditingFiscal || isBlocked} className={!isEditingFiscal || isBlocked ? "bg-gray-50" : ""} />
+                                </div>
+                                <div className="space-y-1">
+                                    <Label>CNAE Principal</Label>
+                                    <Input defaultValue="6201-5/01 - Desenvolvimento de software" disabled={!isEditingFiscal || isBlocked} className={!isEditingFiscal || isBlocked ? "bg-gray-50" : ""} />
+                                </div>
+                                <div className="space-y-1">
+                                    <Label>Inscrição Estadual</Label>
+                                    <Input defaultValue="Isento" disabled={!isEditingFiscal || isBlocked} className={!isEditingFiscal || isBlocked ? "bg-gray-50" : ""} />
+                                </div>
+                            </div>
+                            <div className="grid gap-4 md:grid-cols-2">
+                                <div className="space-y-1">
+                                    <Label>Inscrição Municipal</Label>
+                                    <Input defaultValue="45123678" disabled={!isEditingFiscal || isBlocked} className={!isEditingFiscal || isBlocked ? "bg-gray-50" : ""} />
+                                </div>
+                                <div className="space-y-1">
+                                    <Label>Ambiente</Label>
+                                    <Input defaultValue="Produção" disabled className="bg-gray-50" />
+                                </div>
+                            </div>
+
+                            {isBlocked && (
+                                <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+                                    <ShieldAlert className="h-4 w-4 mt-0.5" />
+                                    <span>Plano bloqueado: alterações fiscais ficam em modo somente leitura.</span>
+                                </div>
+                            )}
+
+                            {!isBlocked && (
+                                <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                                    <AlertTriangle className="h-4 w-4 mt-0.5" />
+                                    <span>Alterações são registradas na auditoria e podem gerar fechamento de período fiscal.</span>
+                                </div>
+                            )}
+
+                            <div className="flex justify-between items-center text-xs text-slate-500">
+                                <span>Última revisão: {new Date().toLocaleString()}</span>
+                                <span>Responsável: Financeiro</span>
+                            </div>
+                        </CardContent>
+                        <CardFooter className="flex justify-end gap-2">
+                            <Button variant="ghost" onClick={() => setIsEditingFiscal((prev) => !prev)} disabled={isBlocked}>
+                                {isEditingFiscal ? "Cancelar" : "Editar"}
+                            </Button>
+                            <Button disabled={isBlocked || !isEditingFiscal}>Salvar alterações</Button>
+                        </CardFooter>
+                    </Card>
                 </TabsContent>
 
                 <TabsContent value="team" className="space-y-4">
@@ -320,78 +394,135 @@ export default function Settings() {
                 </TabsContent>
 
                 <TabsContent value="billing" className="space-y-4">
-                    <Card className="border-l-4 border-l-primary shadow-md">
-                        <CardHeader>
-                            <div className="flex justify-between items-start">
-                                <div>
-                                    <CardTitle>{planState?.planCode || 'Plano'}</CardTitle>
-                                    <CardDescription>{isPlanLoading ? 'Carregando...' : renewalLabel}</CardDescription>
+                    <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
+                        <Card className="border-l-4 border-l-primary shadow-md">
+                            <CardHeader className="pb-3">
+                                <div className="flex justify-between items-start gap-3">
+                                    <div>
+                                        <CardTitle className="flex items-center gap-2 text-xl">
+                                            {planState?.planCode || planState?.plan.name || 'Plano'}
+                                            <Badge className={statusBadge.className}>{statusBadge.label}</Badge>
+                                        </CardTitle>
+                                        <CardDescription>{isPlanLoading ? 'Carregando...' : renewalLabel}</CardDescription>
+                                    </div>
+                                    {planState?.plan.code && (
+                                        <span className="text-xs text-muted-foreground">{planState.plan.code}</span>
+                                    )}
                                 </div>
-                                <Badge className={statusBadge.className}>{statusBadge.label}</Badge>
-                            </div>
+                            </CardHeader>
+                            <CardContent className="space-y-5">
+                                <div className="grid gap-3 md:grid-cols-3">
+                                    <UsageMiniCard
+                                        label="Notas"
+                                        used={invoicesUsed}
+                                        limit={invoicesLimit}
+                                        percent={invoicePercent}
+                                        tone="emerald"
+                                        warn={nearInvoices}
+                                        blocked={isBlocked && invoicesLimit !== null && invoicesUsed >= invoicesLimit}
+                                    />
+                                    <UsageMiniCard
+                                        label="Assentos"
+                                        used={seatsUsed}
+                                        limit={seatsLimit}
+                                        percent={seatPercent}
+                                        tone="blue"
+                                        warn={nearSeats}
+                                        blocked={seatBlocked}
+                                    />
+                                    <UsageMiniCard
+                                        label="Contadores"
+                                        used={accountantsUsed}
+                                        limit={accountantsLimit}
+                                        percent={accountantsPercent}
+                                        tone="amber"
+                                        warn={nearAccountants}
+                                        blocked={accountantsLimit ? accountantsUsed >= accountantsLimit : false}
+                                    />
+                                </div>
+
+                                {planState?.reason && (
+                                    <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                                        <AlertTriangle className="h-4 w-4 mt-0.5" />
+                                        <span>{planState.reason}</span>
+                                    </div>
+                                )}
+
+                                {isBlocked && (
+                                    <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+                                        <ShieldAlert className="h-4 w-4 mt-0.5" />
+                                        <span>Plano bloqueado: emissões e ações críticas podem estar restritas até regularizar.</span>
+                                    </div>
+                                )}
+
+                                <div className="flex flex-wrap gap-2">
+                                    <Button
+                                        onClick={() => {
+                                            const target = CTA_ROUTE[ctaValue] || '/dashboard/settings/billing';
+                                            window.location.href = target;
+                                        }}
+                                    >
+                                        {CTA_LABEL[ctaValue] || 'Gerenciar assinatura'}
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        onClick={() => {
+                                            const target = CTA_ROUTE[ctaValue] || '/dashboard/settings/billing';
+                                            window.location.href = target;
+                                        }}
+                                    >
+                                        Reforçar escudo
+                                    </Button>
+                                    <Button variant="ghost" className="text-sm" onClick={() => window.location.href = '/dashboard/reports'}>
+                                        Ver faturas
+                                    </Button>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        <Card className="shadow-sm">
+                            <CardHeader className="pb-3">
+                                <CardTitle>Pagamento e ciclo</CardTitle>
+                                <CardDescription>Forma de pagamento e auditoria do ciclo.</CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                                    <div className="flex items-center gap-2 text-sm text-slate-700">
+                                        <CreditCard className="h-4 w-4 text-slate-500" />
+                                        <span>•••• 4242</span>
+                                    </div>
+                                    <Button size="sm" variant="outline" onClick={() => window.location.href = '/dashboard/settings/billing'}>Trocar cartão</Button>
+                                </div>
+                                <div className="grid gap-2 text-sm">
+                                    <div className="flex items-center gap-2 text-emerald-700"><CheckCircle2 className="h-4 w-4" /> Renova automaticamente</div>
+                                    <div className="flex items-center gap-2 text-slate-700"><ShieldCheck className="h-4 w-4" /> Plano: {planState?.plan.name || '—'}</div>
+                                    <div className="flex items-center gap-2 text-slate-700"><AlertTriangle className="h-4 w-4 text-amber-500" /> Status: {statusBadge.label}</div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
+
+                    <Card className="shadow-sm">
+                        <CardHeader className="pb-2">
+                            <CardTitle>Recursos do plano</CardTitle>
+                            <CardDescription>O que está incluído hoje.</CardDescription>
                         </CardHeader>
-                        <CardContent className="space-y-6">
-                            <div className="space-y-2">
-                                <div className="flex justify-between text-sm">
-                                    <span className="font-medium text-gray-700">Notas Emitidas (mês)</span>
-                                    <span className="text-gray-500">{invoicesLimit === null ? `${invoicesUsed} / ilimitado` : `${invoicesUsed} / ${invoicesLimit}`}</span>
+                        <CardContent className="grid gap-3 md:grid-cols-2 lg:grid-cols-3 text-sm">
+                            {[
+                                "Emissão de NFSe com pré-flight",
+                                "Escudo de plano com bloqueio automático",
+                                "Colaboradores com perfis granulares",
+                                "Integração API e webhooks",
+                                "Alertas e notificações multicanal",
+                                "Suporte prioritário em planos avançados"
+                            ].map((item) => (
+                                <div key={item} className="flex items-center gap-2 text-slate-700">
+                                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                                    <span>{item}</span>
                                 </div>
-                                <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
-                                    <div
-                                        className="h-full bg-primary transition-all duration-500"
-                                        style={{ width: `${invoicePercent}%` }}
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="space-y-2">
-                                <div className="flex justify-between text-sm">
-                                    <span className="font-medium text-gray-700">Usuários do time</span>
-                                    <span className="text-gray-500">{seatsLimit === null ? `${seatsUsed} / ilimitado` : `${seatsUsed} / ${seatsLimit}`}</span>
-                                </div>
-                                <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
-                                    <div
-                                        className="h-full bg-blue-500 transition-all duration-500"
-                                        style={{ width: `${seatPercent}%` }}
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="flex items-center justify-between pt-4 border-t">
-                                <div className="flex items-center gap-2">
-                                    <CreditCard className="h-4 w-4 text-gray-500" />
-                                    <span className="text-sm">•••• 4242</span>
-                                </div>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => {
-                                        const target = CTA_ROUTE[ctaValue] || '/dashboard/settings/billing';
-                                        window.location.href = target;
-                                    }}
-                                >
-                                    {CTA_LABEL[ctaValue] || 'Gerenciar assinatura'}
-                                </Button>
-                            </div>
+                            ))}
                         </CardContent>
                     </Card>
-
-                    <div className="text-center pt-4">
-                        <p className="text-sm text-muted-foreground mb-2">Precisa de mais recursos ou liberar bloqueios?</p>
-                        <div className="flex flex-col gap-2 items-center">
-                            {planState?.reason && <p className="text-xs text-amber-700 bg-amber-50 px-3 py-2 rounded-md border border-amber-100 max-w-md">{planState.reason}</p>}
-                            <Button
-                                variant="default"
-                                className="bg-gradient-to-r from-blue-600 to-indigo-600 border-none shadow-lg text-white"
-                                onClick={() => {
-                                    const target = CTA_ROUTE[ctaValue] || '/dashboard/settings/billing';
-                                    window.location.href = target;
-                                }}
-                            >
-                                {CTA_LABEL[ctaValue] || 'Fazer upgrade'}
-                            </Button>
-                        </div>
-                    </div>
                 </TabsContent>
 
 
@@ -427,4 +558,35 @@ function ThemeToggle() {
             onCheckedChange={(checked) => setTheme(checked ? 'dark' : 'light')}
         />
     )
+}
+
+function UsageMiniCard({ label, used, limit, percent, tone, warn, blocked }: {
+    label: string;
+    used: number;
+    limit: number | null;
+    percent: number;
+    tone: "emerald" | "blue" | "amber";
+    warn?: boolean;
+    blocked?: boolean;
+}) {
+    const toneMap = {
+        emerald: "bg-emerald-500",
+        blue: "bg-blue-500",
+        amber: "bg-amber-500"
+    } as const;
+    return (
+        <div className="rounded-lg border border-slate-200 bg-white p-3">
+            <div className="flex items-center justify-between text-xs text-slate-600">
+                <span>{label}</span>
+                <span className="font-semibold text-slate-800">{limit === null ? `${used} / ilimitado` : `${used} / ${limit}`}</span>
+            </div>
+            {limit !== null && (
+                <div className="mt-2 h-2 rounded-full bg-slate-100 overflow-hidden">
+                    <div className={`${toneMap[tone]} h-full transition-all`} style={{ width: `${percent}%` }} />
+                </div>
+            )}
+            {blocked && <p className="mt-1 text-[11px] text-red-700">Limite atingido</p>}
+            {!blocked && warn && <p className="mt-1 text-[11px] text-amber-700">Próximo ao limite</p>}
+        </div>
+    );
 }

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { marketplaceService } from "@/services/marketplace";
 import type { Service } from "@/services/marketplace";
@@ -7,19 +7,32 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { ScreenState } from "@/components/common/ScreenState";
 import { Briefcase, Plus, CheckCircle } from "lucide-react";
-// import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/hooks/use-toast";
+import { usePlanState } from "@/contexts/PlanStateContext";
+import { parseApiError } from "@/lib/apiError";
 
 export default function Marketplace() {
     const { currentCompany } = useAuth();
-    // const { toast } = useToast();
+    const { toast } = useToast();
     const [selectedCategory, setSelectedCategory] = useState<string | undefined>();
+    const { data: planState, status, cta, usage, limits } = usePlanState();
+    const planStatus = (status || planState?.status || 'ACTIVE').toUpperCase();
+    const isBlocked = planStatus === 'BLOCKED' || planStatus === 'EXPIRED';
+    const invoicesUsed = usage?.invoices.used ?? planState?.usage.invoices.used ?? 0;
+    const invoicesLimit = limits?.invoices ?? planState?.usage.invoices.limit ?? null;
+    const nearLimit = invoicesLimit ? invoicesUsed / invoicesLimit >= 0.8 : false;
 
     // Fetch Services
-    const { data: services, isLoading } = useQuery<Service[]>({
+    const { data: services, isLoading, isError, error, refetch } = useQuery<Service[]>({
         queryKey: ['marketplace-services', selectedCategory],
         queryFn: () => marketplaceService.listServices(selectedCategory)
     });
+
+    const apiError = parseApiError(error);
+    const tenantViolation = apiError.code === 'TENANT_VIOLATION';
+    const backendError = isError && !tenantViolation;
 
     // Check my profile
     const { data: myProfile } = useQuery({
@@ -36,6 +49,22 @@ export default function Marketplace() {
         { id: 'FINANCE', label: 'Financeiro' },
     ];
 
+    const emptyState = useMemo(() => !isLoading && services?.length === 0, [isLoading, services]);
+    const firstUse = emptyState && invoicesUsed === 0;
+    const warningCopy = planStatus === 'GRACE' ? 'Plano em carência: instalações podem ser limitadas.' : undefined;
+
+    if (tenantViolation) {
+        return (
+            <div className="space-y-4 pb-20">
+                <ScreenState
+                    state="tenant"
+                    description={apiError.message || "Contexto de empresa inválido para o marketplace."}
+                    action={{ label: "Refazer login", to: "/auth/login" }}
+                />
+            </div>
+        );
+    }
+
     return (
         <div className="space-y-6 animate-in fade-in duration-500 pb-20">
             <div className="flex justify-between items-center">
@@ -50,10 +79,20 @@ export default function Marketplace() {
                 )}
             </div>
 
+            {(isBlocked || nearLimit) && (
+                <ScreenState
+                    state={isBlocked ? 'blocked' : 'near-limit'}
+                    inline
+                    description={isBlocked ? 'Plano bloqueado: instale ou ofereça apps após regularizar.' : 'Consumo acima de 80%. Instalações podem ser bloqueadas se exceder.'}
+                    action={{ label: 'Billing & Plans', to: '/settings/billing', variant: 'outline' }}
+                    secondaryAction={!isBlocked ? { label: 'Reforçar escudo', to: '/settings/billing' } : undefined}
+                />
+            )}
+
             <Tabs defaultValue="hire" className="w-full">
                 <TabsList className="grid w-full max-w-md grid-cols-2">
                     <TabsTrigger value="hire">Contratar Serviços</TabsTrigger>
-                    <TabsTrigger value="offer">Oferecer Serviços</TabsTrigger>
+                    <TabsTrigger value="offer" disabled={isBlocked}>Oferecer Serviços</TabsTrigger>
                 </TabsList>
 
                 {/* TAB: HIRE */}
@@ -80,34 +119,68 @@ export default function Marketplace() {
                     </div>
 
                     {/* Grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {isLoading ? (
-                            <p>Carregando serviços...</p>
-                        ) : services?.map(service => (
-                            <Card key={service.id} className="hover:shadow-md transition-shadow">
-                                <CardHeader>
-                                    <div className="flex justify-between items-start">
-                                        <Badge variant="outline">{service.category}</Badge>
-                                    </div>
-                                    <CardTitle className="mt-2 text-lg">{service.title}</CardTitle>
-                                    <CardDescription>por {service.provider_name}</CardDescription>
-                                </CardHeader>
-                                <CardContent>
-                                    <p className="text-sm text-slate-600 line-clamp-3">
-                                        {service.description}
-                                    </p>
-                                </CardContent>
-                                <CardFooter>
-                                    <Button className="w-full">Entrar em Contato</Button>
-                                </CardFooter>
-                            </Card>
-                        ))}
-                        {services?.length === 0 && (
-                            <div className="col-span-full text-center py-12 text-slate-500">
-                                Nenhum serviço encontrado nesta categoria.
-                            </div>
-                        )}
-                    </div>
+                    {backendError && (
+                        <ScreenState
+                            state="error"
+                            inline
+                            description={apiError.message || "Não foi possível carregar o marketplace agora."}
+                            action={{ label: "Recarregar", onClick: () => void refetch(), variant: "outline" }}
+                        />
+                    )}
+
+                    {warningCopy && (
+                        <ScreenState
+                            state="near-limit"
+                            inline
+                            description={warningCopy}
+                        />
+                    )}
+
+                    {isBlocked ? (
+                        <ScreenState
+                            state="blocked"
+                            description={cta === 'UPGRADE' ? 'Plano bloqueado: faça upgrade no billing.' : 'Plano bloqueado: regularize para instalar ou oferecer serviços.'}
+                            action={{ label: 'Ir para Billing', to: '/settings/billing' }}
+                        />
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {isLoading ? (
+                                <p>Carregando serviços...</p>
+                            ) : services?.map(service => (
+                                <Card key={service.id} className="hover:shadow-md transition-shadow">
+                                    <CardHeader>
+                                        <div className="flex justify-between items-start">
+                                            <Badge variant="outline">{service.category}</Badge>
+                                        </div>
+                                        <CardTitle className="mt-2 text-lg">{service.title}</CardTitle>
+                                        <CardDescription>por {service.provider_name}</CardDescription>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <p className="text-sm text-slate-600 line-clamp-3">
+                                            {service.description}
+                                        </p>
+                                    </CardContent>
+                                    <CardFooter>
+                                        <Button
+                                            className="w-full"
+                                            onClick={() => toast({ title: "Pedido enviado", description: "O parceiro receberá seu contato." })}
+                                        >
+                                            Entrar em Contato
+                                        </Button>
+                                    </CardFooter>
+                                </Card>
+                            ))}
+                            {emptyState && (
+                                <ScreenState
+                                    state={firstUse ? 'first-use' : 'empty'}
+                                    className="col-span-full"
+                                    title={firstUse ? 'Nenhuma instalação ainda' : 'Nenhum serviço encontrado'}
+                                    description={firstUse ? 'Instale o primeiro app ou filtre por outra categoria.' : 'Tente outra categoria ou refine a busca.'}
+                                    action={{ label: 'Ver todos', onClick: () => setSelectedCategory(undefined), variant: 'outline' }}
+                                />
+                            )}
+                        </div>
+                    )}
                 </TabsContent>
 
                 {/* TAB: OFFER */}

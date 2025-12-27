@@ -119,37 +119,38 @@ router.get('/metrics/overview', ipAllowlist, requireAdminAuth(['SUPER_ADMIN', 'P
 // GET /admin/companies - basic tenant oversight
 router.get('/companies', ipAllowlist, requireAdminAuth(['SUPER_ADMIN', 'PLATFORM_ADMIN', 'SUPPORT_ADMIN']), async (_req: AdminAuthRequest, res: Response) => {
     const pool = await connectToDatabase();
-    const result = await pool.query(`
-        SELECT c.id,
-               c.trade_name,
-               c.legal_name,
-               c.cnpj,
-               c.created_at,
-               s.status AS subscription_status,
-               s.renewal_cycle,
-               s.start_date,
-               s.end_date,
-               p.code AS plan_code,
-               p.name AS plan_name,
-               COALESCE((SELECT COUNT(*) FROM company_seats cs WHERE cs.company_id = c.id), 0) AS seats
-          FROM companies c
-          LEFT JOIN subscriptions s ON s.company_id = c.id
-          LEFT JOIN plans p ON p.id = s.plan_id
-         ORDER BY c.created_at DESC
-         LIMIT 200;
-    `);
+    const result = await pool.query(
+        `SELECT TOP 200 c.id,
+                c.trade_name,
+                c.legal_name,
+                c.cnpj,
+                c.created_at,
+                s.status AS subscription_status,
+                s.renewal_cycle,
+                s.start_date,
+                s.end_date,
+                p.code AS plan_code,
+                p.name AS plan_name,
+                (SELECT COUNT(*) FROM company_members cm WHERE cm.company_id = c.id AND cm.status = 'ACTIVE') AS seats
+           FROM companies c
+           LEFT JOIN subscriptions s ON s.company_id = c.id
+           LEFT JOIN plans p ON p.id = s.plan_id
+          ORDER BY c.created_at DESC`
+    );
     res.json({ companies: result.rows });
 });
 
 // PATCH /admin/companies/:id/status - pause/resume subscription
 router.patch('/companies/:id/status', ipAllowlist, requireAdminAuth(['SUPER_ADMIN', 'PLATFORM_ADMIN']), async (req: AdminAuthRequest, res: Response) => {
     const { status } = req.body;
-    const allowed = ['ACTIVE', 'PAUSED', 'CANCELLED'];
+    const allowed = ['ACTIVE', 'GRACE', 'EXPIRED', 'CANCELLED'];
     if (!allowed.includes(status)) return res.status(400).json({ message: 'Status inválido' });
 
     const pool = await connectToDatabase();
     const updated = await pool.query(
-        'UPDATE subscriptions SET status = $1, updated_at = NOW() WHERE company_id = $2 RETURNING id, company_id, status',
+        `UPDATE subscriptions SET status = $1, updated_at = SYSUTCDATETIME()
+           OUTPUT inserted.id, inserted.company_id, inserted.status
+         WHERE company_id = $2`,
         [status, req.params.id]
     );
 
@@ -169,14 +170,19 @@ router.patch('/companies/:id/status', ipAllowlist, requireAdminAuth(['SUPER_ADMI
 // GET /admin/plans - list plans + features
 router.get('/plans', ipAllowlist, requireAdminAuth(['SUPER_ADMIN', 'PLATFORM_ADMIN']), async (_req: AdminAuthRequest, res: Response) => {
     const pool = await connectToDatabase();
-    const plans = await pool.query(
-        `SELECT p.*, COALESCE(json_agg(f.feature_code ORDER BY f.feature_code) FILTER (WHERE f.feature_code IS NOT NULL), '[]') AS features
-           FROM plans p
-           LEFT JOIN plan_features f ON f.plan_id = p.id
-          GROUP BY p.id
-          ORDER BY p.created_at DESC`
+    const plansResult = await pool.query(
+        'SELECT id, code, name, price_monthly, price_yearly, invoice_limit, seat_limit, accountant_limit, extra_invoice_price, extra_seat_price, is_custom, created_at FROM plans ORDER BY created_at DESC'
     );
-    res.json({ plans: plans.rows });
+    const featuresResult = await pool.query('SELECT plan_id, feature_code FROM plan_features');
+
+    const featuresByPlan = featuresResult.rows.reduce((acc: Record<string, string[]>, row: any) => {
+        if (!acc[row.plan_id]) acc[row.plan_id] = [];
+        acc[row.plan_id].push(row.feature_code);
+        return acc;
+    }, {});
+
+    const plans = plansResult.rows.map((p: any) => ({ ...p, features: featuresByPlan[p.id] || [] }));
+    res.json({ plans });
 });
 
 const upsertPlanFeatures = async (client: PoolClient, planId: string, features: string[]) => {
@@ -201,10 +207,10 @@ router.post('/plans', ipAllowlist, requireAdminAuth(['SUPER_ADMIN']), async (req
     try {
         await client.query('BEGIN');
         const plan = await client.query(
-            `INSERT INTO plans (code, name, price_monthly, invoice_limit, seat_limit, extra_invoice_price, extra_seat_price, is_custom)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
-             RETURNING *`,
-            [code, name, price_monthly, invoice_limit, seat_limit, extra_invoice_price, extra_seat_price, is_custom]
+            `INSERT INTO plans (code, name, price_monthly, price_yearly, invoice_limit, seat_limit, accountant_limit, extra_invoice_price, extra_seat_price, is_custom)
+             OUTPUT inserted.*
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+            [code, name, price_monthly, price_monthly, invoice_limit, seat_limit, seat_limit, extra_invoice_price, extra_seat_price, is_custom]
         );
 
         await upsertPlanFeatures(client, plan.rows[0].id, features);
@@ -239,8 +245,9 @@ router.put('/plans/:id', ipAllowlist, requireAdminAuth(['SUPER_ADMIN']), async (
             `UPDATE plans SET name = COALESCE($1, name), price_monthly = COALESCE($2, price_monthly),
                               invoice_limit = COALESCE($3, invoice_limit), seat_limit = COALESCE($4, seat_limit),
                               extra_invoice_price = COALESCE($5, extra_invoice_price), extra_seat_price = COALESCE($6, extra_seat_price),
-                              is_custom = COALESCE($7, is_custom), updated_at = NOW()
-             WHERE id = $8 RETURNING *`,
+                              is_custom = COALESCE($7, is_custom), updated_at = SYSUTCDATETIME()
+             OUTPUT inserted.*
+             WHERE id = $8`,
             [name, price_monthly, invoice_limit, seat_limit, extra_invoice_price, extra_seat_price, is_custom, req.params.id]
         );
         if (updated.rowCount === 0) {
@@ -273,15 +280,14 @@ router.put('/plans/:id', ipAllowlist, requireAdminAuth(['SUPER_ADMIN']), async (
 router.get('/users/seats', ipAllowlist, requireAdminAuth(['SUPER_ADMIN', 'PLATFORM_ADMIN', 'SUPPORT_ADMIN']), async (_req: AdminAuthRequest, res: Response) => {
     const pool = await connectToDatabase();
     const rows = await pool.query(
-        `SELECT cs.id, cs.company_id, cs.status, cs.seat_role,
-                u.email, u.full_name, u.role,
-                c.trade_name, c.cnpj,
-                cs.created_at
-           FROM company_seats cs
-           JOIN users u ON u.id = cs.user_id
-           JOIN companies c ON c.id = cs.company_id
-          ORDER BY cs.created_at DESC
-          LIMIT 200`
+        `SELECT TOP 200 cm.id, cm.company_id, cm.status, cm.role AS seat_role,
+            u.email, u.full_name, u.role,
+            c.trade_name, c.cnpj,
+            cm.created_at
+           FROM company_members cm
+           JOIN users u ON u.id = cm.user_id
+           JOIN companies c ON c.id = cm.company_id
+          ORDER BY cm.created_at DESC`
     );
     res.json({ seats: rows.rows });
 });
@@ -289,19 +295,17 @@ router.get('/users/seats', ipAllowlist, requireAdminAuth(['SUPER_ADMIN', 'PLATFO
 // GET /admin/audit - latest platform and tenant actions
 router.get('/audit', ipAllowlist, requireAdminAuth(['SUPER_ADMIN', 'PLATFORM_ADMIN', 'SUPPORT_ADMIN']), async (_req: AdminAuthRequest, res: Response) => {
     const pool = await connectToDatabase();
-    const result = await pool.query(
-        `(
-            SELECT 'tenant' AS scope, id, user_id, company_id, action, details, ip_address, created_at
-              FROM audit_logs
-         )
-         UNION ALL
-         (
-            SELECT 'admin' AS scope, id, actor_admin_id AS user_id, NULL AS company_id, action, after_state AS details, ip_address, created_at
-              FROM admin_audit_logs
-         )
-         ORDER BY created_at DESC
-         LIMIT 200`
-    );
+        const result = await pool.query(
+                `SELECT TOP 200 *
+                     FROM (
+                                SELECT 'tenant' AS scope, id, user_id, company_id, action, details, ip_address, created_at
+                                    FROM audit_logs
+                                UNION ALL
+                                SELECT 'admin' AS scope, id, actor_admin_id AS user_id, NULL AS company_id, action, after_state AS details, ip_address, created_at
+                                    FROM admin_audit_logs
+                     ) AS logs
+                    ORDER BY created_at DESC`
+        );
     res.json({ logs: result.rows });
 });
 
@@ -309,12 +313,12 @@ router.get('/audit', ipAllowlist, requireAdminAuth(['SUPER_ADMIN', 'PLATFORM_ADM
 router.get('/impersonation/sessions', ipAllowlist, requireAdminAuth(['SUPER_ADMIN', 'PLATFORM_ADMIN', 'SUPPORT_ADMIN']), async (_req: AdminAuthRequest, res: Response) => {
     const pool = await connectToDatabase();
     const sessions = await pool.query(
-        `SELECT s.id, s.admin_id, s.company_id, s.user_id, s.expires_at, s.created_at, s.active,
+        `SELECT TOP 200 s.id, s.admin_id, s.company_id, s.user_id, s.expires_at, s.created_at, s.active,
                 c.trade_name, u.email
            FROM impersonation_sessions s
            LEFT JOIN companies c ON c.id = s.company_id
            LEFT JOIN users u ON u.id = s.user_id
-          WHERE s.active = TRUE
+          WHERE s.active = 1
           ORDER BY s.created_at DESC`
     );
     res.json({ sessions: sessions.rows });

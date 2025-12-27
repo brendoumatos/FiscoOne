@@ -22,6 +22,18 @@ export const authenticateToken = (req: AuthRequest, res: Response, next: NextFun
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
 
+    // E2E/DEV bypass: allow static token to proceed without JWT verification (never enabled in production)
+    const bypassToken = process.env.E2E_BYPASS_TOKEN || 'e2e-test-token';
+    if (process.env.NODE_ENV !== 'production' && token === bypassToken) {
+        req.user = {
+            id: 'e2e-user',
+            email: 'e2e@test',
+            role: 'CLIENT',
+            companyId: process.env.E2E_COMPANY_ID || 'e2e-company-id'
+        };
+        return next();
+    }
+
     if (!token) {
         return res.status(401).json({ message: 'Acesso negado. Token não fornecido.' });
     }

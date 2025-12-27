@@ -3,17 +3,13 @@ import { AlertTriangle, ShieldAlert } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { usePlanState } from "@/contexts/PlanStateContext";
+import { PLAN_COPY } from "@/copy/plan";
 
-const CTA_LABEL: Record<string, string> = {
-    UPGRADE: "Fazer upgrade",
-    BUY_CREDITS: "Comprar créditos",
-    CONTACT_SUPPORT: "Falar com suporte"
-};
+const CTA_LABEL = PLAN_COPY.cta;
 
 const CTA_ROUTE: Record<string, string> = {
-    UPGRADE: "/dashboard/settings/billing",
-    BUY_CREDITS: "/dashboard/settings/billing",
-    CONTACT_SUPPORT: "/dashboard/settings/support"
+    UPGRADE_PLAN: "/dashboard/settings/billing",
+    REGULARIZE_PAYMENT: "/dashboard/settings/billing",
 };
 
 export function PlanBlockDialog() {
@@ -25,7 +21,7 @@ export function PlanBlockDialog() {
         const handler = (event: Event) => {
             const custom = event as CustomEvent;
             const detail = custom.detail as any;
-            setEventReason(detail?.reason || detail?.message || data?.reason || "Ação bloqueada pelo plano.");
+            setEventReason(detail?.reason || detail?.message || data?.reason || PLAN_COPY.blocked.GENERIC);
             setOpen(true);
             void refresh();
         };
@@ -36,18 +32,19 @@ export function PlanBlockDialog() {
     useEffect(() => {
         if ((status || "ACTIVE") === "BLOCKED") {
             setOpen(true);
-            if (!eventReason) setEventReason(data?.reason || "Seu plano foi bloqueado.");
+            if (!eventReason) setEventReason(data?.reason || PLAN_COPY.blocked.GENERIC);
         } else if (!eventReason) {
             setOpen(false);
         }
     }, [status, data?.reason, eventReason]);
 
     const reason = useMemo(() => {
-        return eventReason || data?.reason || "Seu plano atual bloqueou esta ação.";
+        return eventReason || data?.reason || PLAN_COPY.blocked.GENERIC;
     }, [eventReason, data?.reason]);
 
-    const ctaLabel = CTA_LABEL[cta || "UPGRADE"] || "Ver opções";
-    const ctaRoute = CTA_ROUTE[cta || "UPGRADE"] || "/dashboard/settings";
+    const normalizedCta = (cta === "UPGRADE_PLAN" || cta === "REGULARIZE_PAYMENT") ? cta : "UPGRADE_PLAN";
+    const ctaLabel = CTA_LABEL[normalizedCta] || PLAN_COPY.cta.SEE_OPTIONS;
+    const ctaRoute = CTA_ROUTE[normalizedCta] || "/dashboard/settings";
 
     return (
         <Dialog open={open} onOpenChange={(next) => setOpen((status || "ACTIVE") === "BLOCKED" ? true : next)}>

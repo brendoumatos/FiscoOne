@@ -1,16 +1,19 @@
 import api from './api';
-import type { Invoice, CreateInvoiceDTO } from '../types/invoice';
-
-// Local interface removed, using imported CreateInvoiceDTO
+import type { Invoice, CreateInvoiceDTO, IssueInvoicePayload, InvoicePreview } from '../types/invoice';
 
 export const invoiceService = {
-    async createInvoice(data: CreateInvoiceDTO): Promise<Invoice> {
+    async createInvoice(data: IssueInvoicePayload): Promise<Invoice> {
         const response = await api.post('/invoices', data);
         return response.data;
     },
 
-    async getInvoices(): Promise<Invoice[]> {
-        const response = await api.get('/invoices');
+    async previewInvoice(data: IssueInvoicePayload): Promise<InvoicePreview> {
+        const response = await api.get('/invoices/preview', { params: data });
+        return response.data;
+    },
+
+    async getInvoices(params?: { month?: string; status?: string }): Promise<Invoice[]> {
+        const response = await api.get('/invoices', { params });
         return response.data;
     },
 
@@ -20,7 +23,7 @@ export const invoiceService = {
     },
 
     async getServiceCodes() {
-        // Keeping this hardcoded for now as it's static domain data
+        // Static domain data fallback
         return [
             { code: '1.03', description: 'Processamento de dados e congêneres', taxRate: 2.0 },
             { code: '1.05', description: 'Licenciamento ou cessão de direito de uso de programas', taxRate: 2.0 },
@@ -39,8 +42,8 @@ export const invoiceService = {
             iss: amount * issRate,
             pis: amount * pisRate,
             cofins: amount * cofinsRate,
-            csll: amount * 0.01, // approx
-            ir: amount * 0.015, // approx
+            csll: amount * 0.01,
+            ir: amount * 0.015,
             total: (amount * issRate) + (amount * pisRate) + (amount * cofinsRate) + (amount * 0.01) + (amount * 0.015)
         };
     }

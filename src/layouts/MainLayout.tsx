@@ -12,7 +12,10 @@ import {
     Repeat,
     Receipt,
     Users,
-    ShieldAlert
+    ShieldAlert,
+    ShoppingBag,
+    Clock3,
+    UserCog
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -152,8 +155,11 @@ export default function MainLayout() {
                             <NavItem to="/dashboard/recurrence" icon={Repeat} label="Recorrências" />
                             <NavItem to="/dashboard/expenses" icon={Receipt} label="Despesas" />
                             <NavItem to="/dashboard/partners" icon={Users} label="Parceiros" />
+                            <NavItem to="/dashboard/marketplace" icon={ShoppingBag} label="Marketplace" />
                             <NavItem to="/dashboard/documents" icon={FileText} label="Documentos" />
                             <NavItem to="/dashboard/chat" icon={Menu} label="Fale com Contador" />
+                            <NavItem to="/dashboard/collaborators" icon={UserCog} label="Colaboradores" />
+                            <NavItem to="/dashboard/timeline" icon={Clock3} label="Linha do Tempo" />
                         </>
                     )}
                 </nav>
@@ -210,8 +216,11 @@ export default function MainLayout() {
                                     if (p.includes('/recurrence')) return 'Recorrência';
                                     if (p.includes('/expenses')) return 'Gestão de Despesas';
                                     if (p.includes('/partners')) return 'Parceiros';
+                                    if (p.includes('/marketplace')) return 'Marketplace';
                                     if (p.includes('/documents')) return 'Documentos';
                                     if (p.includes('/chat')) return 'Chat';
+                                    if (p.includes('/collaborators')) return 'Colaboradores';
+                                    if (p.includes('/timeline')) return 'Linha do Tempo';
                                     if (p.includes('/accountant')) return 'Área do Contador';
                                     if (p.includes('/settings')) return 'Configurações';
                                     return 'FiscoOne';

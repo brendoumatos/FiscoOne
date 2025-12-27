@@ -25,12 +25,39 @@ export function PlanStateProvider({ children }: { children: React.ReactNode }) {
         queryKey: ["plan-state", currentCompany?.id, isDemo],
         queryFn: async () => {
             if (!currentCompany) return null;
-            if (isDemo) return demoService.getPlanState();
+            if (isDemo) {
+                const base = await demoService.getPlanState();
+                const overrideCode = localStorage.getItem("fiscoone_demo_plan_override");
+                if (!overrideCode) return base;
+                const overrideMap: Record<string, { name: string; limits: { invoices: number | null; seats: number | null; accountants: number | null } }> = {
+                    START: { name: "Start", limits: { invoices: 5, seats: 1, accountants: 0 } },
+                    ESSENTIAL: { name: "Essential", limits: { invoices: 20, seats: 3, accountants: 1 } },
+                    PRO: { name: "Pro", limits: { invoices: 80, seats: 8, accountants: 3 } },
+                    ENTERPRISE: { name: "Enterprise", limits: { invoices: null, seats: null, accountants: null } }
+                };
+                const override = overrideMap[overrideCode.toUpperCase()];
+                if (!override) return base;
+                return {
+                    ...base,
+                    plan: { ...base.plan, name: override.name, code: overrideCode.toUpperCase() },
+                    limits: override.limits,
+                    usage: {
+                        ...base.usage,
+                        invoices: { ...base.usage.invoices, limit: override.limits.invoices ?? base.usage.invoices.limit },
+                        seats: { ...base.usage.seats, limit: override.limits.seats ?? base.usage.seats.limit },
+                        accountants: { ...base.usage.accountants, limit: override.limits.accountants ?? base.usage.accountants.limit }
+                    }
+                } as PlanState;
+            }
             return planStateService.getPlanState();
         },
         enabled: !!currentCompany,
-        staleTime: 30_000,
-        gcTime: 5 * 60_000
+        staleTime: 0,
+        gcTime: 60_000,
+        refetchOnMount: true,
+        refetchOnWindowFocus: true,
+        refetchOnReconnect: true,
+        refetchInterval: 15_000
     });
 
     useEffect(() => {

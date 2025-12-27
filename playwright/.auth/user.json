@@ -1,0 +1,22 @@
+{
+  "cookies": [],
+  "origins": [
+    {
+      "origin": "http://localhost:5173",
+      "localStorage": [
+        {
+          "name": "fiscoone_token",
+          "value": "e2e-test-token"
+        },
+        {
+          "name": "fiscoone_user",
+          "value": "{\"token\":\"e2e-test-token\",\"companyId\":\"e2e-company-id\",\"email\":\"e2e@test\"}"
+        },
+        {
+          "name": "fiscoone_current_company_id",
+          "value": "e2e-company-id"
+        }
+      ]
+    }
+  ]
+}

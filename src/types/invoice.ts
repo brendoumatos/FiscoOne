@@ -66,3 +66,20 @@ export interface CreateInvoiceDTO {
     borrower: Borrower;
     items: InvoiceItem[];
 }
+
+export interface IssueInvoicePayload {
+    borrowerDoc: string;
+    borrowerName: string;
+    serviceAmount: number;
+    taxAmount?: number;
+    totalAmount?: number;
+}
+
+export interface InvoicePreview {
+    serviceAmount: number;
+    taxAmount: number;
+    totalAmount: number;
+    status: string;
+    warnings?: string[];
+    timestamp: string;
+}
