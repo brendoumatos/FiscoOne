@@ -10,7 +10,7 @@ export const authService = {
     async register(data: SignupData): Promise<{ user: User; token: string }> {
         const response = await api.post('/auth/signup', {
             ...data,
-            role: 'CLIENT' // Defaulting to Client for self-registration
+            role: data.role || 'CLIENT' // allow explicit role selection, default CLIENT
         });
         return response.data;
     },

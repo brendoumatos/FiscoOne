@@ -1,10 +1,10 @@
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useForm, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { companySchema, type CompanyData } from "@/types/company";
 import { companyService } from "@/services/company";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,8 +18,14 @@ export default function OnboardingWizard() {
     const [step, setStep] = useState(1);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const navigate = useNavigate();
-    const { refreshCompanies, updateUser } = useAuth();
+    const [searchParams] = useSearchParams();
+    const { refreshCompanies, updateUser, isDemo, currentCompany } = useAuth();
     const { toast } = useToast();
+
+    const selectedPlanCode = useMemo(() => {
+        const code = searchParams.get("plan") || "BASIC";
+        return code.toUpperCase();
+    }, [searchParams]);
 
     const [isSearchingCNPJ, setIsSearchingCNPJ] = useState(false);
     const [cnpjFound, setCnpjFound] = useState(false);
@@ -99,11 +105,20 @@ export default function OnboardingWizard() {
     const onSubmit: SubmitHandler<CompanyData> = async (data) => {
         setIsSubmitting(true);
         try {
-            const planCode = localStorage.getItem('onboarding_plan');
-            const payload = { ...data, planCode: planCode || undefined };
+            if (isDemo) {
+                // Em modo demo, não persistimos no backend. Apenas simulamos sucesso e cache local.
+                if (currentCompany?.id) {
+                    updateUser({ companyId: currentCompany.id });
+                }
+                toast({
+                    title: "Ambiente Demo",
+                    description: "Ativação simulada sem gravar dados.",
+                });
+                navigate("/dashboard");
+                return;
+            }
 
-            const createdCompany = await companyService.createCompany(payload);
-            localStorage.removeItem('onboarding_plan');
+            const createdCompany = await companyService.createCompany({ ...data, planCode: selectedPlanCode });
 
             if (createdCompany.id) {
                 updateUser({ companyId: createdCompany.id });
@@ -414,6 +429,18 @@ export default function OnboardingWizard() {
                                                 <span className="font-semibold text-slate-900">
                                                     {getValues("invoiceFrequency")} / {getValues("averageMonthlyRevenue")?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                                 </span>
+                                            </div>
+                                            <div className="flex justify-between items-center pb-2 border-b border-slate-200">
+                                                <span className="text-slate-500 font-medium">Plano</span>
+                                                <span className="font-semibold text-slate-900">{selectedPlanCode}</span>
+                                            </div>
+                                            <div className="flex justify-between items-center pb-2 border-b border-slate-200">
+                                                <span className="text-slate-500 font-medium">Limites</span>
+                                                <span className="font-semibold text-slate-900">Aplicados pelo backend conforme plano selecionado</span>
+                                            </div>
+                                            <div className="flex justify-between items-center pb-2 border-b border-slate-200">
+                                                <span className="text-slate-500 font-medium">Regras</span>
+                                                <span className="font-semibold text-slate-900">Bloqueio ao exceder limite, Upgrade imediato via billing</span>
                                             </div>
                                         </div>
 

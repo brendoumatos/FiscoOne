@@ -4,31 +4,38 @@ import { requireRole, PERMISSIONS } from '../middleware/requireRole';
 import { marketplaceService } from '../services/marketplace';
 import { protectedCompanyRouter } from '../utils/protectedCompanyRouter';
 import { auditLogService } from '../services/auditLog';
+import { sendError } from '../utils/errorCatalog';
 
 const router = protectedCompanyRouter();
 
 // List Services
-router.get('/:companyId/services', requireRole(PERMISSIONS.INVOICE_READ), async (req: AuthRequest, res: Response) => {
+router.get('/services', requireRole(PERMISSIONS.INVOICE_READ), async (req: AuthRequest, res: Response) => {
     const { category } = req.query;
     try {
         const services = await marketplaceService.listServices(category as string);
         res.json(services);
     } catch (error) {
-        res.status(500).json({ message: 'Error listing services' });
+        sendError(res, 'INTERNAL_ERROR', { reason: 'Error listing services' });
+    }
+});
+
+// Contract alias: GET /marketplace/apps -> list services/apps
+router.get('/apps', requireRole(PERMISSIONS.INVOICE_READ), async (req: AuthRequest, res: Response) => {
+    const { category } = req.query;
+    try {
+        const services = await marketplaceService.listServices(category as string);
+        res.json(services);
+    } catch (error) {
+        sendError(res, 'INTERNAL_ERROR', { reason: 'Error listing apps' });
     }
 });
 
 // Register as Provider
-router.post('/:companyId/providers', requireRole(PERMISSIONS.COMPANY_SETTINGS), async (req: AuthRequest, res: Response) => {
-    const { companyId } = req.params;
+router.post('/providers', requireRole(PERMISSIONS.COMPANY_SETTINGS), async (req: AuthRequest, res: Response) => {
+    const companyId = req.user?.companyId;
     const { bio, specialties } = req.body;
 
     try {
-        const entitlement = await import('../services/subscription').then(m => m.subscriptionService.checkEntitlement(companyId, 'MARKETPLACE_MUTATION'));
-        if (!(await entitlement).allowed) {
-            return res.status(403).json({ message: (await entitlement).reason || 'Plano não permite esta ação' });
-        }
-
         const provider = await marketplaceService.registerProvider(companyId, bio, specialties);
 
         await auditLogService.log({
@@ -40,43 +47,59 @@ router.post('/:companyId/providers', requireRole(PERMISSIONS.COMPANY_SETTINGS), 
         });
         res.status(201).json(provider);
     } catch (error: any) {
-        res.status(400).json({ message: error.message || 'Error registering provider' });
+        sendError(res, 'VALIDATION_ERROR', { reason: error.message || 'Error registering provider' });
     }
 });
 
 // Check Profile
-router.get('/:companyId/providers/me', requireRole(PERMISSIONS.INVOICE_READ), async (req: AuthRequest, res: Response) => {
-    const { companyId } = req.params;
+router.get('/providers/me', requireRole(PERMISSIONS.INVOICE_READ), async (req: AuthRequest, res: Response) => {
+    const companyId = req.user?.companyId;
 
     try {
         const profile = await marketplaceService.getProviderProfile(companyId);
         res.json(profile || null);
     } catch (error) {
-        res.status(500).json({ message: 'Error fetching profile' });
+        sendError(res, 'INTERNAL_ERROR', { reason: 'Error fetching profile' });
     }
 });
 
 // Create Service Listing
-router.post('/:companyId/services', requireRole(PERMISSIONS.COMPANY_SETTINGS), async (req: AuthRequest, res: Response) => {
+router.post('/services', requireRole(PERMISSIONS.COMPANY_SETTINGS), async (req: AuthRequest, res: Response) => {
     const { providerId, title, description, category } = req.body;
     try {
-        const entitlement = await import('../services/subscription').then(m => m.subscriptionService.checkEntitlement(req.params.companyId, 'MARKETPLACE_MUTATION'));
-        if (!(await entitlement).allowed) {
-            return res.status(403).json({ message: (await entitlement).reason || 'Plano não permite esta ação' });
-        }
-
         const service = await marketplaceService.createService(providerId, title, description, category);
 
         await auditLogService.log({
             action: 'COMPANY_SETTINGS_UPDATED',
             entityType: 'COMPANY',
-            entityId: req.params.companyId,
+            entityId: req.user?.companyId,
             afterState: { serviceId: service.id, providerId, title, category },
             req
         });
         res.status(201).json(service);
     } catch (error) {
-        res.status(500).json({ message: 'Error creating service' });
+        sendError(res, 'INTERNAL_ERROR', { reason: 'Error creating service' });
+    }
+});
+
+// POST /marketplace/apps/install - record installation request
+router.post('/apps/install', requireRole(PERMISSIONS.COMPANY_SETTINGS), async (req: AuthRequest, res: Response) => {
+    const companyId = req.user?.companyId;
+    const { appId } = req.body;
+    if (!appId) return sendError(res, 'VALIDATION_ERROR', { reason: 'appId obrigatório' });
+
+    try {
+        const installation = await marketplaceService.installApp(appId, companyId);
+        await auditLogService.log({
+            action: 'MARKETPLACE_APP_INSTALLED',
+            entityType: 'COMPANY',
+            entityId: companyId,
+            afterState: { appId },
+            req
+        });
+        res.status(201).json(installation);
+    } catch (error: any) {
+        sendError(res, 'INTERNAL_ERROR', { reason: error?.message || 'Erro ao instalar app' });
     }
 });
 

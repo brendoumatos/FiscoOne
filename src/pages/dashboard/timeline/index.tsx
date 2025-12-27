@@ -11,7 +11,7 @@ export default function TimelinePage() {
 
     const { data: events, isLoading } = useQuery({
         queryKey: ['fiscal-timeline', currentCompany?.id],
-        queryFn: () => currentCompany ? timelineService.getTimeline(currentCompany.id) : [],
+        queryFn: () => currentCompany ? timelineService.getTimeline() : [],
         enabled: !!currentCompany
     });
 

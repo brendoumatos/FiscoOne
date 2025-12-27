@@ -14,7 +14,7 @@ export type AnyRole = CompanyRole | AccountantRole;
  * Mapeia Ações de Alto Nível para Roles permitidas.
  * Pode ser usada para gerar documentação ou validar lógica.
  */
-export const PERMISSIONS = {
+export const PERMISSIONS: Record<string, AnyRole[]> = {
     INVOICE_READ: ['OWNER', 'ADMIN', 'FINANCE', 'VIEWER', 'ACCOUNTANT', 'SUPERVISOR'],
     INVOICE_WRITE: ['OWNER', 'ADMIN', 'FINANCE', 'ACCOUNTANT', 'SUPERVISOR'],
     INVOICE_CANCEL: ['OWNER', 'ADMIN', 'SUPERVISOR'], // Accountant comum não cancela (exemplo)

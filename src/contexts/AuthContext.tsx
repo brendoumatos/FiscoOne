@@ -3,6 +3,7 @@ import { type User, type LoginCredentials, type SignupData, UserRole } from "@/t
 import { authService } from "@/services/auth";
 import { type Company } from "@/types/company";
 import { companyService } from "@/services/company";
+import { demoService } from "@/services/demo";
 
 interface AuthContextType {
     user: User | null;
@@ -29,6 +30,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [isLoading, setIsLoading] = useState<boolean>(true);
 
     const [isDemo, setIsDemo] = useState<boolean>(false);
+
+    const buildLocalDemoSession = () => ({
+        user: { id: "demo-user-id", name: "Usuário Demonstração", role: UserRole.CLIENT },
+        company: { id: "demo-company-id", name: "Demo Company", plan: "ESSENTIAL" as const }
+    });
 
     const loadCompanies = async (selectedId?: string) => {
         if (isDemo) {
@@ -116,58 +122,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (demoFlag === "true") {
                 setIsDemo(true);
                 if (storedUser) {
-                    setUser(JSON.parse(storedUser));
+                    const parsed = JSON.parse(storedUser) as User;
+                    setUser(parsed);
+                    const session = buildLocalDemoSession();
+                    const demoCompany: Company = {
+                        id: session.company.id,
+                        ownerId: session.user.id,
+                        cnpj: "00.000.000/0001-91",
+                        legalName: session.company.name,
+                        tradeName: session.company.name,
+                        taxRegime: "SIMPLES",
+                        plan: session.company.plan,
+                        name: session.company.name,
+                        createdAt: new Date().toISOString(),
+                        address: {
+                            zipCode: "00000-000",
+                            street: "Rua Demo",
+                            number: "123",
+                            neighborhood: "Centro",
+                            city: "São Paulo",
+                            state: "SP"
+                        },
+                        bankInfo: {
+                            bankName: "Banco Demo",
+                            agency: "0001",
+                            account: "12345-6",
+                            accountType: "CHECKING"
+                        } as any
+                    };
+                    setCompanies([demoCompany]);
+                    setCurrentCompany(demoCompany);
                 }
-                setCompanies([{
-                    id: "demo-company-id",
-                    ownerId: "demo-user-id",
-                    cnpj: "00.000.000/0001-91",
-                    legalName: "Empresa Demonstração Ltda",
-                    tradeName: "Demo Company",
-                    taxRegime: "SIMPLES",
-                    plan: "Pro",
-                    name: "Demo Company",
-                    createdAt: new Date().toISOString(),
-                    address: {
-                        zipCode: "00000-000",
-                        street: "Rua Demo",
-                        number: "123",
-                        neighborhood: "Centro",
-                        city: "São Paulo",
-                        state: "SP"
-                    },
-                    bankInfo: {
-                        bankName: "Banco Demo",
-                        agency: "0001",
-                        account: "12345-6",
-                        accountType: "CHECKING"
-                    } as any
-                } as Company]);
-                setCurrentCompany({
-                    id: "demo-company-id",
-                    ownerId: "demo-user-id",
-                    cnpj: "00.000.000/0001-91",
-                    legalName: "Empresa Demonstração Ltda",
-                    tradeName: "Demo Company",
-                    taxRegime: "SIMPLES",
-                    plan: "Pro",
-                    name: "Demo Company",
-                    createdAt: new Date().toISOString(),
-                    address: {
-                        zipCode: "00000-000",
-                        street: "Rua Demo",
-                        number: "123",
-                        neighborhood: "Centro",
-                        city: "São Paulo",
-                        state: "SP"
-                    },
-                    bankInfo: {
-                        bankName: "Banco Demo",
-                        agency: "0001",
-                        account: "12345-6",
-                        accountType: "CHECKING"
-                    } as any
-                } as Company);
             } else if (storedUser) {
                 const parsedUser = JSON.parse(storedUser);
                 setUser(parsedUser);
@@ -195,69 +180,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
-    const loginAsDemo = async (role: 'CLIENT' | 'ACCOUNTANT' = 'CLIENT') => {
-        setIsLoading(true);
-        const mappedRole = role === 'CLIENT' ? UserRole.CLIENT : UserRole.ACCOUNTANT;
-        const mockUser: User = {
-            id: "demo-user-id",
-            name: role === 'CLIENT' ? "Usuário Demonstração" : "Contador Demo",
-            email: role === 'CLIENT' ? "demo@fiscoone.com" : "contador@fiscoone.com",
-            role: mappedRole,
-            companyId: "demo-company-id",
-            token: "demo-token-123"
-        };
-
-        setUser(mockUser);
-        setIsDemo(true);
-        localStorage.setItem("fiscoone_demo_mode", "true");
-        localStorage.setItem("fiscoone_user", JSON.stringify(mockUser));
-
-        // Mock token persistence
-        authService.setSession("demo-token-123", mockUser);
-
-        // Load mock companies
-        const demoCompany: Company = {
-            id: "demo-company-id",
-            ownerId: "demo-user-id",
-            cnpj: "00.000.000/0001-91",
-            legalName: "Empresa Demonstração Ltda",
-            tradeName: "Demo Company",
-            taxRegime: "SIMPLES",
-            plan: "Pro",
-            name: "Demo Company",
-            createdAt: new Date().toISOString(),
-            address: {
-                zipCode: "00000-000",
-                street: "Rua Demo",
-                number: "123",
-                neighborhood: "Centro",
-                city: "São Paulo",
-                state: "SP"
-            },
-            bankInfo: {
-                bankName: "Banco Demo",
-                agency: "0001",
-                account: "12345-6",
-                accountType: "CHECKING"
-            } as any
-        };
-
-        setCompanies([demoCompany]);
-        setCurrentCompany(demoCompany);
-
-        setIsLoading(false);
-    };
-
     const signup = async (data: SignupData) => {
         setIsLoading(true);
         try {
             const response = await authService.register(data);
-            authService.setSession(response.token, response.user); // Persist token and user
+            authService.setSession(response.token, response.user);
             setUser(response.user);
             setIsDemo(false);
             localStorage.removeItem("fiscoone_demo_mode");
-            // isAuthenticated is derived from user, no need to set explicitly
-            await loadCompanies(); // Load companies after successful registration
+            await loadCompanies();
         } catch (error) {
             console.error(error);
             throw error;
@@ -266,19 +197,75 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
+    const loginAsDemo = async (role: 'CLIENT' | 'ACCOUNTANT' = 'CLIENT') => {
+        setIsLoading(true);
+        try {
+            const mappedRole = role === 'CLIENT' ? UserRole.CLIENT : UserRole.ACCOUNTANT;
+
+            const session = await demoService.getSession();
+            if (!session?.token) {
+                throw new Error("Demo session indisponível");
+            }
+
+            const demoUser: User = {
+                id: session.user.id,
+                name: role === 'CLIENT' ? session.user.name : "Contador Demo",
+                email: role === 'CLIENT' ? "demo@fiscoone.com" : "contador@fiscoone.com",
+                role: mappedRole,
+                companyId: session.company.id,
+                token: session.token
+            };
+
+            const demoCompany: Company = {
+                id: session.company.id,
+                ownerId: session.user.id,
+                cnpj: "00.000.000/0001-91",
+                legalName: session.company.name,
+                tradeName: session.company.name,
+                taxRegime: "SIMPLES",
+                plan: session.company.plan,
+                name: session.company.name,
+                createdAt: new Date().toISOString(),
+                address: {
+                    zipCode: "00000-000",
+                    street: "Rua Demo",
+                    number: "123",
+                    neighborhood: "Centro",
+                    city: "São Paulo",
+                    state: "SP"
+                },
+                bankInfo: {
+                    bankName: "Banco Demo",
+                    agency: "0001",
+                    account: "12345-6",
+                    accountType: "CHECKING"
+                } as any
+            };
+
+            setUser(demoUser);
+            setIsDemo(true);
+            localStorage.setItem("fiscoone_demo_mode", "true");
+            localStorage.setItem("fiscoone_user", JSON.stringify(demoUser));
+
+            // Persist token issued for demo-only calls (read-only enforced server-side)
+            authService.setSession(session.token, demoUser);
+
+            setCompanies([demoCompany]);
+            setCurrentCompany(demoCompany);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     const logout = async () => {
         setIsLoading(true);
         try {
-            if (!isDemo) {
-                await authService.logout();
-            }
+            await authService.logout();
             setUser(null);
-            setCurrentCompany(null);
             setCompanies([]);
-            setIsDemo(false);
-            localStorage.removeItem("fiscoone_user");
-            localStorage.removeItem("fiscoone_current_company_id");
+            setCurrentCompany(null);
             localStorage.removeItem("fiscoone_demo_mode");
+            localStorage.removeItem("fiscoone_current_company_id");
         } finally {
             setIsLoading(false);
         }

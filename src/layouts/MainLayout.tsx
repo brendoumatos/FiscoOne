@@ -1,6 +1,6 @@
 
-import { useState } from "react";
-import { Outlet, Link, useLocation } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import {
     LayoutDashboard,
@@ -11,7 +11,8 @@ import {
     Menu,
     Repeat,
     Receipt,
-    Users
+    Users,
+    ShieldAlert
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -29,13 +30,30 @@ import { BrandEmblem, PoweredByBadge } from "@/components/common/BrandEmblem";
 import { BrandPendant } from "@/components/common/BrandPendant";
 import { UserNav } from "@/components/common/UserNav";
 import { PlanShield } from "@/components/common/PlanShield";
-import { useSubscription } from "@/contexts/SubscriptionContext";
+import { usePlanState } from "@/contexts/PlanStateContext";
 
 export default function MainLayout() {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-    const { logout, user, currentCompany, companies, switchCompany } = useAuth();
-    const { data: subscription } = useSubscription();
+    const [demoReason, setDemoReason] = useState<string | null>(null);
+    const { logout, user, currentCompany, companies, switchCompany, isDemo } = useAuth();
     const location = useLocation();
+    const navigate = useNavigate();
+    const { data: planState } = usePlanState();
+    const planStatus = (planState?.status || 'ACTIVE').toUpperCase();
+    const planLocked = planStatus === 'BLOCKED' || planStatus === 'GRACE';
+    const lockCopy = planStatus === 'GRACE'
+        ? 'Seu plano está no período de carência ou cobrança pendente. Algumas ações ficam indisponíveis até regularizar.'
+        : 'Seu plano foi bloqueado. Regularize ou faça upgrade para retomar as ações.';
+
+    useEffect(() => {
+        const handler = (event: Event) => {
+            const detail = (event as CustomEvent)?.detail;
+            const reason = detail?.reason || detail?.message || 'Modo demonstração é somente leitura.';
+            setDemoReason(reason);
+        };
+        window.addEventListener('demo-readonly', handler as EventListener);
+        return () => window.removeEventListener('demo-readonly', handler as EventListener);
+    }, []);
 
     const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
 
@@ -79,11 +97,7 @@ export default function MainLayout() {
                                     </div>
                                     <div className="flex flex-col items-start overflow-hidden flex-1">
                                         <span className="text-sm font-bold tracking-tight leading-none text-white truncate w-full text-left">{currentCompany?.name}</span>
-                                        {subscription ? (
-                                            <span className="text-[10px] text-emerald-300 font-semibold uppercase tracking-wider">Escudo {subscription.plan.name}</span>
-                                        ) : (
-                                            <span className="text-[10px] text-emerald-400 font-medium uppercase tracking-wider">Plano ativo</span>
-                                        )}
+                                        <span className="text-[10px] text-emerald-300 font-semibold uppercase tracking-wider">Escudo {planState?.plan.name ?? 'Ativo'}</span>
                                     </div>
                                     <ChevronsUpDown className="ml-auto h-4 w-4 text-gray-400 opacity-50" />
                                 </div>
@@ -215,11 +229,6 @@ export default function MainLayout() {
                                 className="pl-4 pr-10 py-2 bg-gray-100 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 w-64"
                             />
                         </div>
-                        {subscription && (
-                            <div className="hidden xl:block min-w-[260px]">
-                                <PlanShield />
-                            </div>
-                        )}
                         <Button className="rounded-full bg-primary hover:bg-primary/90 text-white px-6 hidden sm:flex">
                             <PlusIcon className="w-4 h-4 mr-2" />
                             Novo
@@ -230,9 +239,42 @@ export default function MainLayout() {
                 </header>
 
                 {/* Scrollable Content Area */}
-                <main className="flex-1 p-4 lg:p-8 overflow-y-auto bg-[#f9fafb] relative">
-                    <div className="max-w-7xl mx-auto relative z-10">
-                        <Outlet />
+                <main className="flex-1 p-4 lg:p-8 overflow-y-auto bg-[#f9fafb] relative" data-plan-status={planStatus} data-demo-mode={isDemo}>
+                    <div className="sticky top-0 z-20 mb-4 space-y-2">
+                        {isDemo && (
+                            <div className="flex items-start gap-3 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 shadow-sm text-indigo-900">
+                                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-indigo-200 text-indigo-900">DEMO</span>
+                                <div className="text-xs leading-tight">
+                                    <div className="font-semibold">Modo demonstração (somente leitura)</div>
+                                    <div className="text-indigo-800/80">{demoReason || 'Dados de exemplo são reiniciados periodicamente. Ações de escrita são bloqueadas.'}</div>
+                                </div>
+                            </div>
+                        )}
+                        <PlanShield />
+                    </div>
+                    <div className="max-w-7xl mx-auto relative z-10" data-plan-locked={planLocked}>
+                        {planLocked && (
+                            <div className="absolute inset-0 z-20 rounded-xl bg-white/80 backdrop-blur-sm border border-amber-200/80 flex flex-col items-center justify-center text-center gap-3 p-6 shadow-lg">
+                                <div className="flex items-center gap-2 text-amber-800 font-semibold">
+                                    <ShieldAlert className="h-5 w-5" />
+                                    {planStatus === 'GRACE' ? 'Período de carência' : 'Plano bloqueado'}
+                                </div>
+                                <p className="text-sm text-slate-700 max-w-xl">{lockCopy}</p>
+                                <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+                                    <Button className="flex-1" onClick={() => navigate('/dashboard/settings/billing')}>
+                                        Ir para upgrade
+                                    </Button>
+                                    <Button variant="outline" className="flex-1 sm:flex-none sm:min-w-[140px]" onClick={() => window.location.reload()}>
+                                        Recarregar
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
+                        <div className={cn("relative", planLocked ? "pointer-events-none select-none opacity-60 blur-[1px]" : "")}
+                            aria-disabled={planLocked}
+                        >
+                            <Outlet />
+                        </div>
                     </div>
                     <BrandEmblem className="fixed bottom-0 right-0 p-10 transform translate-x-10 translate-y-10 scale-150" />
                 </main>

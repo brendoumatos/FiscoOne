@@ -4,46 +4,87 @@ import { AuthRequest } from '../middleware/auth';
 import { requireRole, PERMISSIONS } from '../middleware/requireRole';
 import storageService from '../services/storage';
 import { timelineService } from '../services/timeline';
-import { subscriptionService } from '../services/subscription';
 import { usageService } from '../services/usage';
 import { auditLogService } from '../services/auditLog';
 import { pool } from '../config/db';
 import { protectedCompanyRouter } from '../utils/protectedCompanyRouter';
+import { sendError } from '../utils/errorCatalog';
 
 const router = protectedCompanyRouter();
 
+// GET /invoices/preview - lightweight tax preview without persisting
+router.get('/preview', requireRole(PERMISSIONS.INVOICE_READ), async (req: AuthRequest, res: Response) => {
+    try {
+        const items = (req.query.items as any) || req.body?.items || [];
+        const totalFromQuery = req.query.total ? Number(req.query.total) : undefined;
+        const total = Number.isFinite(totalFromQuery) && totalFromQuery !== 0
+            ? totalFromQuery
+            : Array.isArray(items)
+                ? items.reduce((sum, item) => sum + Number(item.amount || item.total || 0), 0)
+                : 0;
+
+        const serviceTax = Number((total * 0.02).toFixed(2));
+        const vat = Number((total * 0.05).toFixed(2));
+        const net = Number((total - serviceTax - vat).toFixed(2));
+
+        res.json({
+            total,
+            taxes: {
+                serviceTax,
+                vat
+            },
+            net,
+            items: Array.isArray(items) ? items : []
+        });
+    } catch (error) {
+        console.error('Erro no preview de nota', error);
+        sendError(res, 'INTERNAL_ERROR', { reason: 'Erro ao calcular preview.' });
+    }
+});
+
 // GET /invoices
-router.get('/:companyId', requireRole(PERMISSIONS.INVOICE_READ), async (req: AuthRequest, res: Response) => {
-    const { companyId } = req.params;
+router.get('/', requireRole(PERMISSIONS.INVOICE_READ), async (req: AuthRequest, res: Response) => {
+    const companyId = req.user?.companyId;
+    const { month } = req.query; // expected format YYYY-MM
 
     try {
         const pool = await connectToDatabase();
 
+        const params: any[] = [companyId];
+        let where = 'company_id = $1';
+
+        if (month) {
+            params.push(month);
+            where += ` AND FORMAT(issue_date, 'yyyy-MM') = $2`;
+        }
+
         const result = await pool.query(
             `SELECT * FROM invoices 
-             WHERE company_id = $1
+             WHERE ${where}
              ORDER BY issue_date DESC`,
-            [companyId]
+            params
         );
 
         res.json(result.rows);
     } catch (error) {
         console.error('Erro ao listar notas:', error);
-        res.status(500).json({ message: 'Erro interno.' });
+        sendError(res, 'INTERNAL_ERROR', { reason: 'Erro interno.' });
     }
 });
 
 // POST /invoices
-router.post('/:companyId', requireRole(PERMISSIONS.INVOICE_WRITE), async (req: AuthRequest, res: Response) => {
-    const { companyId } = req.params;
-    const {
-        borrower,
-        items,
-        amount
-    } = req.body;
+router.post('/', requireRole(PERMISSIONS.INVOICE_WRITE), async (req: AuthRequest, res: Response) => {
+    const companyId = req.user?.companyId;
+    const { customer_id, customer_name, items, total, borrower } = req.body;
 
+    // Contract: payload uses customer_id + items + total (fallback to legacy borrower/amount)
+    const amount = total ?? req.body.amount;
+    const borrowerDoc = customer_id ?? borrower?.document ?? 'UNKNOWN';
+    const borrowerName = customer_name ?? borrower?.name ?? 'Cliente';
+
+    const client = await pool.connect();
     try {
-        const pool = await connectToDatabase();
+        await client.query('BEGIN');
 
         // 1. Generate Metadata
         const issueDate = new Date();
@@ -58,31 +99,16 @@ router.post('/:companyId', requireRole(PERMISSIONS.INVOICE_WRITE), async (req: A
         const filePath = `${companyId}/${year}/${month}/${fileName}`;
         await storageService.saveFile(filePath, fakeXmlContent);
 
-        // Subscription & Entitlement Check
-        const entitlement = await subscriptionService.checkEntitlement(companyId, 'ISSUE_INVOICE', { req });
-        if (!entitlement.allowed) {
-            return res.status(403).json({
-                message: entitlement.reason,
-                code: 'ENTITLEMENT_DENIED',
-                upgrade_suggestion: entitlement.upgrade_suggestion,
-                current_usage: entitlement.current_usage,
-                limit: entitlement.limit
-            });
-        }
-
-        // 1. Transactional Insert (Invoices + Items)
-        // Note: We need to increment usage AFTER successful creation. 
-        // Or conceptually reserve it. For MVP, we check first, then increment after.
-        const result = await pool.query(
+        const result = await client.query(
             `INSERT INTO invoices (
                 company_id, issue_date, status, amount,
                 borrower_doc, borrower_name, xml_storage_url
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
-            RETURNING *`,
+            OUTPUT inserted.*
+            VALUES ($1, $2, $3, $4, $5, $6, $7)`,
             [
                 companyId, issueDate, 'ISSUED', amount,
-                borrower.document, borrower.name, filePath
+                borrowerDoc, borrowerName, filePath
             ]
         );
 
@@ -93,12 +119,12 @@ router.post('/:companyId', requireRole(PERMISSIONS.INVOICE_WRITE), async (req: A
             companyId,
             'INVOICE_ISSUED',
             `Nota Fiscal R$ ${amount} emitida`,
-            `Nota emitida para ${borrower.name}`,
+            `Nota emitida para ${borrowerName}`,
             { invoiceId: newInvoice.id, amount }
         );
 
         // Usage Hook
-        await usageService.incrementUsage(companyId, 'INVOICES_ISSUED');
+        await usageService.incrementUsage(companyId, 'INVOICES');
 
         // Audit Log (fail fast if logging fails)
         await auditLogService.log({
@@ -109,34 +135,36 @@ router.post('/:companyId', requireRole(PERMISSIONS.INVOICE_WRITE), async (req: A
             req
         });
 
+        await client.query('COMMIT');
         res.status(201).json(newInvoice);
 
     } catch (error) {
+        await client.query('ROLLBACK');
         console.error('Erro ao emitir nota:', error);
-        res.status(500).json({ message: 'Erro ao emitir nota.' });
+        sendError(res, 'INTERNAL_ERROR', { reason: 'Erro ao emitir nota.' });
+    }
+    finally {
+        client.release();
     }
 });
 
 // Cancel invoice
-router.post('/:companyId/:invoiceId/cancel', requireRole(PERMISSIONS.INVOICE_CANCEL), async (req: AuthRequest, res: Response) => {
-    const { companyId, invoiceId } = req.params;
+router.post('/:invoiceId/cancel', requireRole(PERMISSIONS.INVOICE_CANCEL), async (req: AuthRequest, res: Response) => {
+    const companyId = req.user?.companyId;
+    const { invoiceId } = req.params;
 
+    const client = await pool.connect();
     try {
-        const entitlement = await subscriptionService.checkEntitlement(companyId, 'CANCEL_INVOICE', { req });
-        if (!entitlement.allowed) {
-            return res.status(403).json({
-                message: entitlement.reason || 'Plano não permite cancelar notas',
-                code: 'ENTITLEMENT_DENIED',
-                upgrade_suggestion: entitlement.upgrade_suggestion
-            });
-        }
+        await client.query('BEGIN');
 
-        const result = await pool.query(
-            `UPDATE invoices SET status = 'CANCELLED' WHERE id = $1 AND company_id = $2 RETURNING *`,
+        const result = await client.query(
+            `UPDATE invoices SET status = 'CANCELLED' WHERE id = $1 AND company_id = $2
+             OUTPUT inserted.*`,
             [invoiceId, companyId]
         );
         if (result.rowCount === 0) {
-            return res.status(404).json({ message: 'Nota não encontrada' });
+            await client.query('ROLLBACK');
+            return sendError(res, 'NOT_FOUND', { reason: 'Nota não encontrada' });
         }
 
         await auditLogService.log({
@@ -148,10 +176,15 @@ router.post('/:companyId/:invoiceId/cancel', requireRole(PERMISSIONS.INVOICE_CAN
             req
         });
 
+        await client.query('COMMIT');
         res.json(result.rows[0]);
     } catch (error) {
+        await client.query('ROLLBACK');
         console.error('Erro ao cancelar nota:', error);
-        res.status(500).json({ message: 'Erro ao cancelar nota' });
+        sendError(res, 'INTERNAL_ERROR', { reason: 'Erro ao cancelar nota' });
+    }
+    finally {
+        client.release();
     }
 });
 

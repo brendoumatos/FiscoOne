@@ -22,7 +22,7 @@ export const creditService = {
     async getActiveCredits(companyId: string, type: 'EXTRA_INVOICES') {
         const result = await pool.query(
             `SELECT * FROM service_credits 
-             WHERE company_id = $1 AND credit_type = $2 AND remaining_value > 0 AND (valid_until IS NULL OR valid_until > NOW())
+             WHERE company_id = $1 AND credit_type = $2 AND remaining_value > 0 AND (valid_until IS NULL OR valid_until > SYSUTCDATETIME())
              ORDER BY valid_until ASC`, // Use oldest expiry first
             [companyId, type]
         );

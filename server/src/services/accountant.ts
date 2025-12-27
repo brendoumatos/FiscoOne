@@ -31,14 +31,16 @@ export const accountantService = {
             const result = await pool.query(
                 `UPDATE branding_settings 
                  SET primary_color = $1, secondary_color = $2, logo_url = $3, company_name_display = $4
-                 WHERE accountant_id = $5 RETURNING *`,
+                 WHERE accountant_id = $5 
+                 OUTPUT inserted.*`,
                 [settings.primaryColor, settings.secondaryColor, settings.logoUrl, settings.nameDisplay, accountantId]
             );
             return result.rows[0];
         } else {
             const result = await pool.query(
                 `INSERT INTO branding_settings (accountant_id, primary_color, secondary_color, logo_url, company_name_display)
-                 VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+                 OUTPUT inserted.*
+                 VALUES ($1, $2, $3, $4, $5)`,
                 [accountantId, settings.primaryColor, settings.secondaryColor, settings.logoUrl, settings.nameDisplay]
             );
             return result.rows[0];
@@ -48,7 +50,9 @@ export const accountantService = {
     // 4. Register Accountant (Admin feature usually)
     async createAccountant(name: string, email: string, domain: string) {
         const result = await pool.query(
-            `INSERT INTO accountants (name, email, domain) VALUES ($1, $2, $3) RETURNING *`,
+            `INSERT INTO accountants (name, email, domain) 
+             OUTPUT inserted.*
+             VALUES ($1, $2, $3)`,
             [name, email, domain]
         );
         return result.rows[0];
@@ -57,8 +61,10 @@ export const accountantService = {
     // 5. Link Company to Accountant
     async linkClient(accountantId: string, companyId: string) {
         await pool.query(
-            `INSERT INTO accountant_clients (accountant_id, company_id) VALUES ($1, $2)
-             ON CONFLICT (accountant_id, company_id) DO NOTHING`,
+            `IF NOT EXISTS (SELECT 1 FROM accountant_clients WHERE accountant_id = $1 AND company_id = $2)
+             BEGIN
+                 INSERT INTO accountant_clients (accountant_id, company_id) VALUES ($1, $2)
+             END`,
             [accountantId, companyId]
         );
     }

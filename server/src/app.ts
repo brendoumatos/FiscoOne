@@ -33,10 +33,19 @@ import marketplaceRouter from './routes/marketplace';
 import timelineRouter from './routes/timeline';
 import accountantRouter from './routes/accountant'; // check filename: accountant.ts
 import subscriptionRouter from './routes/subscription'; // check filename: subscription.ts
+import dashboardRouter from './routes/dashboard';
 import userRouter from './routes/users';
 import pricingRouter from './routes/pricing';
 import recurrenceRouter from './routes/recurrence';
 import reportsRouter from './routes/reports';
+import planStateRouter from './routes/planState';
+import demoRouter from './routes/demo';
+import adminRouter from './routes/admin';
+import publicRouter from './routes/public';
+import onboardingRouter from './routes/onboarding';
+import collaboratorsRouter from './routes/collaborators';
+import billingRouter from './routes/billing';
+import fiscalSettingsRouter from './routes/fiscalSettings';
 
 app.use('/auth', authRoutes);
 app.use('/companies', companyRoutes);
@@ -45,12 +54,21 @@ app.use('/score', scoreRoutes);
 app.use('/readiness', readinessRouter);
 app.use('/marketplace', marketplaceRouter);
 app.use('/timeline', timelineRouter);
+app.use('/dashboard', dashboardRouter);
 app.use('/accountants', accountantRouter);
 app.use('/subscriptions', subscriptionRouter);
 app.use('/pricing', pricingRouter);
 app.use('/companies', userRouter); // user management under company scope
 app.use('/recurrence', recurrenceRouter);
 app.use('/reports', reportsRouter);
+app.use('/companies', planStateRouter);
+app.use('/demo', demoRouter);
+app.use('/admin', adminRouter);
+app.use('/public', publicRouter);
+app.use('/onboarding', onboardingRouter);
+app.use('/collaborators', collaboratorsRouter);
+app.use('/billing', billingRouter);
+app.use('/settings', fiscalSettingsRouter);
 
 
 export default app;

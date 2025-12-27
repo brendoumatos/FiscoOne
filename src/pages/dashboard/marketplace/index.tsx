@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { marketplaceService, type Service } from "@/services/marketplace";
+import { marketplaceService } from "@/services/marketplace";
+import type { Service } from "@/services/marketplace";
 import { useAuth } from "@/contexts/AuthContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -23,7 +24,7 @@ export default function Marketplace() {
     // Check my profile
     const { data: myProfile } = useQuery({
         queryKey: ['my-provider-profile', currentCompany?.id],
-        queryFn: () => currentCompany ? marketplaceService.getMyProfile(currentCompany.id) : null,
+        queryFn: () => currentCompany ? marketplaceService.getMyProfile() : null,
         enabled: !!currentCompany
     });
 

@@ -12,13 +12,13 @@ export interface FinancialReadiness {
 }
 
 export const readinessService = {
-    async getReadiness(companyId: string): Promise<FinancialReadiness> {
-        const response = await api.get(`/readiness/${companyId}/readiness`);
+    async getReadiness(): Promise<FinancialReadiness> {
+        const response = await api.get('/readiness/readiness');
         return response.data;
     },
 
-    async recalculate(companyId: string): Promise<FinancialReadiness> {
-        const response = await api.post(`/readiness/${companyId}/readiness/recalculate`);
+    async recalculate(): Promise<FinancialReadiness> {
+        const response = await api.post('/readiness/readiness/recalculate');
         return response.data;
     }
 };

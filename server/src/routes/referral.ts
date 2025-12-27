@@ -2,6 +2,7 @@ import { Router, Response } from 'express';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { referralService } from '../services/referral';
 import { creditService } from '../services/credit';
+import { sendError } from '../utils/errorCatalog';
 
 const router = Router();
 router.use(authenticateToken);
@@ -11,7 +12,7 @@ router.get('/dashboard', async (req: AuthRequest, res: Response) => {
     const companyId = req.user?.companyId;
     // Fallback?
     // In real app we trust req.user.companyId from token
-    if (!companyId) return res.status(400).json({ message: "No company context" });
+    if (!companyId) return sendError(res, 'TENANT_VIOLATION', { reason: 'No company context' });
 
     try {
         const dashboard = await referralService.getDashboardData(companyId);
@@ -20,7 +21,7 @@ router.get('/dashboard', async (req: AuthRequest, res: Response) => {
         res.json({ ...dashboard, credits });
     } catch (error) {
         console.error(error);
-        res.status(500).json({ message: 'Internal Server Error' });
+        sendError(res, 'INTERNAL_ERROR');
     }
 });
 
@@ -29,11 +30,11 @@ router.get('/dashboard', async (req: AuthRequest, res: Response) => {
 router.post('/apply/:code', async (req: AuthRequest, res: Response) => {
     const { code } = req.params;
     const companyId = req.user?.companyId;
-    if (!companyId) return res.status(400).json({ message: "No company context" });
+    if (!companyId) return sendError(res, 'TENANT_VIOLATION', { reason: 'No company context' });
 
     const success = await referralService.registerInvite(code, companyId);
     if (!success) {
-        return res.status(400).json({ message: 'Invalid or self-referral code' });
+        return sendError(res, 'VALIDATION_ERROR', { reason: 'Invalid or self-referral code' });
     }
     res.json({ message: 'Referral code applied' });
 });

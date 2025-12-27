@@ -1,33 +1,53 @@
 
+import api from './api';
+
 export interface TeamMember {
     id: string;
     name: string;
     email: string;
-    role: 'ADMIN' | 'MEMBER' | 'VIEWER';
-    status: 'ACTIVE' | 'PENDING';
+    role: 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER' | 'COLLABORATOR';
+    status: 'ACTIVE' | 'PENDING' | 'INACTIVE';
 }
 
-const mockMembers: TeamMember[] = [
-    { id: '1', name: 'Você', email: 'admin@empresa.com', role: 'ADMIN', status: 'ACTIVE' },
-    { id: '2', name: 'Maria Silva', email: 'financeiro@empresa.com', role: 'MEMBER', status: 'ACTIVE' },
-];
+const normalizeMember = (row: any): TeamMember => ({
+    id: row.user_id || row.id || crypto.randomUUID?.() || String(Date.now()),
+    name: row.name || row.email || 'Colaborador',
+    email: row.email || row.user_id || 'desconhecido@empresa.com',
+    role: row.role === 'COLLABORATOR' ? 'MEMBER' : (row.role || 'MEMBER'),
+    status: row.status || 'ACTIVE'
+});
 
 export const teamService = {
     async getMembers(): Promise<TeamMember[]> {
-        await new Promise(resolve => setTimeout(resolve, 800));
-        return [...mockMembers];
+        try {
+            const { data } = await api.get('/collaborators');
+            return Array.isArray(data) ? data.map(normalizeMember) : [];
+        } catch (error) {
+            console.error('Erro ao carregar membros do time', error);
+            return [];
+        }
     },
-    async inviteMember(email: string, role: string): Promise<TeamMember> {
-        await new Promise(resolve => setTimeout(resolve, 800));
+    async inviteMember(identifier: string, role: string): Promise<TeamMember> {
+        try {
+            await api.post('/collaborators', { userId: identifier, role });
+        } catch (error) {
+            console.error('Erro ao convidar colaborador', error);
+        }
+
+        // Backend retorna apenas mensagem; devolvemos representação mínima para UI.
         return {
-            id: Math.random().toString(),
-            name: email.split('@')[0],
-            email,
-            role: role as any,
+            id: identifier,
+            name: identifier.includes('@') ? identifier.split('@')[0] : identifier,
+            email: identifier,
+            role: role as TeamMember['role'],
             status: 'PENDING'
         };
     },
-    async removeMember(_id: string): Promise<void> {
-        await new Promise(resolve => setTimeout(resolve, 500));
+    async removeMember(id: string): Promise<void> {
+        try {
+            await api.delete(`/collaborators/${id}`);
+        } catch (error) {
+            console.error('Erro ao remover colaborador', error);
+        }
     }
 };

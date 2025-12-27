@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useAuth } from './AuthContext';
 import { subscriptionService } from '@/services/subscription';
-import { type SubscriptionData } from "@/services/subscription";
+import type { SubscriptionData } from "@/services/subscription";
+import { usePlanState } from "./PlanStateContext";
 
 interface SubscriptionContextType {
     data: SubscriptionData | null;
@@ -27,6 +28,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
     const { currentCompany } = useAuth();
     const [data, setData] = useState<SubscriptionData | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const { status: planStatus, usage: planUsage } = usePlanState();
 
     const load = async () => {
         if (!currentCompany) {
@@ -34,7 +36,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
             return;
         }
         try {
-            const sub = await subscriptionService.getCurrentSubscription(currentCompany.id);
+            const sub = await subscriptionService.getCurrentSubscription();
             setData(sub);
         } catch (error) {
             console.error(error);
@@ -50,26 +52,18 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
     const hasFeature = (code: string) => data?.features.includes(code) ?? false;
 
     const canIssueInvoice = () => {
-        if (!data) return false;
-
-        // 1. Enterprise / Unlimited
-        if (data.plan.limit === -1) return true;
-
-        // 2. Free Plan Expiration Rule (use explicit expirationDate if provided)
-        if (data.plan.code === 'FREE' && data.expirationDate) {
-            const exp = new Date(data.expirationDate);
-            if (Date.now() > exp.getTime()) return false;
-        }
-
-        // 3. Usage Limit
-        return data.usage.invoices < data.plan.limit;
+        if (!planUsage) return false;
+        if ((planStatus || 'ACTIVE') === 'BLOCKED') return false;
+        const limit = planUsage.invoices.limit;
+        if (limit === null) return true;
+        return planUsage.invoices.used < limit;
     };
 
     const canAddCollaborator = () => {
-        if (!data) return false;
-        if (data.seatLimit === undefined || data.currentCollaborators === undefined) return false;
-        if (data.seatLimit === -1) return true;
-        return data.currentCollaborators < data.seatLimit;
+        if (!planUsage) return false;
+        const limit = planUsage.seats.limit;
+        if (limit === null) return true;
+        return planUsage.seats.used < limit;
     };
 
     return (

@@ -1,15 +1,18 @@
 import { useQuery } from "@tanstack/react-query";
-import { pricingService } from "@/services/pricing";
+import { pricingService, type PricingInsight } from "@/services/pricing";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { TrendingUp } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 
 export function PricingInsightWidget() {
     const navigate = useNavigate();
-    const { data: insight, isLoading } = useQuery({
-        queryKey: ['pricing-insight'],
-        queryFn: pricingService.getInsight
+    const { currentCompany } = useAuth();
+    const { data: insight, isLoading } = useQuery<PricingInsight | null>({
+        queryKey: ['pricing-insight', currentCompany?.id],
+        queryFn: () => pricingService.getInsight(),
+        enabled: !!currentCompany?.id
     });
 
     if (isLoading || !insight) return null;

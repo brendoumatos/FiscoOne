@@ -3,54 +3,62 @@ import { pool } from '../config/db';
 export const seedPlans = async () => {
     console.log('Seeding Plans...');
 
-    // Features
-    const features = [
-        { code: 'DASHBOARD_FULL', desc: 'Dashboard Completo' },
-        { code: 'TRUST_SCORE', desc: 'Score de Confiança Fiscal' },
-        { code: 'DOC_STORAGE', desc: 'Armazenamento de Documentos' },
-        { code: 'ALERTS', desc: 'Alertas de Vencimento' },
-        { code: 'MARKETPLACE', desc: 'Acesso ao Marketplace' }
-    ];
-
-    for (const f of features) {
-        await pool.query(
-            `INSERT INTO features (code, description_pt_br) VALUES ($1, $2) ON CONFLICT (code) DO NOTHING`,
-            [f.code, f.desc]
-        );
-    }
-
-    // Plans
+    // Plans (no free tier). START is the onboarding default.
     const plans = [
-        { code: 'FREE', name: 'Plano Gratuito', limit: 2, price: 0, desc: 'Ideal para MEI e pequenas movimentações.' },
-        { code: 'BASIC', name: 'Plano Básico', limit: 5, price: 29.90, desc: 'Para quem está crescendo.' },
-        { code: 'PRO', name: 'Plano Pro', limit: 50, price: 89.90, desc: 'Gestão completa para sua empresa.' },
-        { code: 'ENTERPRISE', name: 'Plano Empresarial', limit: -1, price: 299.90, desc: 'Sem limites e com suporte exclusivo.' }
+        { code: 'START', name: 'Start', invoiceLimit: 2, seatLimit: 1, accountantLimit: 0, priceMonthly: 8.99, priceYearly: 89.90, desc: 'Essencial para começar.' },
+        { code: 'ESSENTIAL', name: 'Essencial', invoiceLimit: 5, seatLimit: 1, accountantLimit: 1, priceMonthly: 49.0, priceYearly: 499.0, desc: 'Cobertura fiscal completa.' },
+        { code: 'PROFESSIONAL', name: 'Profissional', invoiceLimit: 50, seatLimit: 3, accountantLimit: 1, priceMonthly: 149.0, priceYearly: 1490.0, desc: 'Governança e recorrência.' },
+        { code: 'ENTERPRISE', name: 'Enterprise', invoiceLimit: -1, seatLimit: -1, accountantLimit: -1, priceMonthly: 349.0, priceYearly: 3490.0, desc: 'Sem limites com SLAs.' }
     ];
 
     for (const p of plans) {
         const res = await pool.query(
-            `INSERT INTO plans (code, name, description_pt_br, invoice_limit, price_monthly) 
-             VALUES ($1, $2, $3, $4, $5) 
-             ON CONFLICT (code) DO UPDATE SET invoice_limit = $4, price_monthly = $5
-             RETURNING id`,
-            [p.code, p.name, p.desc, p.limit, p.price]
+            `MERGE plans AS target
+             USING (SELECT $1 AS code, $2 AS name, $3 AS description_pt_br, $4 AS price_monthly, $5 AS price_yearly) AS src
+             ON target.code = src.code
+             WHEN MATCHED THEN
+                 UPDATE SET name = src.name, description_pt_br = src.description_pt_br, price_monthly = src.price_monthly, price_yearly = src.price_yearly
+             WHEN NOT MATCHED THEN
+                 INSERT (code, name, description_pt_br, price_monthly, price_yearly)
+                 VALUES (src.code, src.name, src.description_pt_br, src.price_monthly, src.price_yearly)
+             OUTPUT inserted.id`,
+            [p.code, p.name, p.desc, p.priceMonthly, p.priceYearly]
         );
         const planId = res.rows[0].id;
 
-        // Assign Features
-        // FREE: None of the advanced features
-        // BASIC: DASHBOARD_FULL
-        // PRO: DASHBOARD_FULL, TRUST_SCORE, DOC_STORAGE, ALERTS
-        // ENTERPRISE: ALL
+        // Entitlements (DB is source of truth)
+        const entitlements = [
+            { key: 'INVOICES', limit: p.invoiceLimit },
+            { key: 'SEATS', limit: p.seatLimit },
+            { key: 'ACCOUNTANTS', limit: p.accountantLimit }
+        ];
 
-        const enabledFeatures = [];
-        if (p.code === 'BASIC') enabledFeatures.push('DASHBOARD_FULL');
-        if (p.code === 'PRO') enabledFeatures.push('DASHBOARD_FULL', 'TRUST_SCORE', 'DOC_STORAGE', 'ALERTS');
+        for (const ent of entitlements) {
+            await pool.query(
+                `IF NOT EXISTS (SELECT 1 FROM plan_entitlements WHERE plan_code = $1 AND entitlement_key = $2)
+                 BEGIN
+                     INSERT INTO plan_entitlements (plan_code, entitlement_key, limit_value) VALUES ($1, $2, $3)
+                 END
+                 ELSE
+                 BEGIN
+                     UPDATE plan_entitlements SET limit_value = $3 WHERE plan_code = $1 AND entitlement_key = $2
+                 END`,
+                [p.code, ent.key, ent.limit]
+            );
+        }
+
+        // Assign simple feature flags (optional, keep minimal for START)
+        const enabledFeatures = [] as string[];
+        if (p.code === 'ESSENTIAL') enabledFeatures.push('DASHBOARD_FULL');
+        if (p.code === 'PROFESSIONAL') enabledFeatures.push('DASHBOARD_FULL', 'TRUST_SCORE', 'DOC_STORAGE', 'ALERTS');
         if (p.code === 'ENTERPRISE') enabledFeatures.push('DASHBOARD_FULL', 'TRUST_SCORE', 'DOC_STORAGE', 'ALERTS', 'MARKETPLACE');
 
         for (const featureCode of enabledFeatures) {
             await pool.query(
-                `INSERT INTO plan_features (plan_id, feature_code) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+                `IF NOT EXISTS (SELECT 1 FROM plan_features WHERE plan_id = $1 AND feature_code = $2)
+                 BEGIN
+                     INSERT INTO plan_features (plan_id, feature_code) VALUES ($1, $2)
+                 END`,
                 [planId, featureCode]
             );
         }

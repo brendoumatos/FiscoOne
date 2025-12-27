@@ -1,7 +1,9 @@
-import { Link } from "react-router-dom";
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ShieldCheck, Shield, ArrowRight, Lock, TrendingUp, CheckCircle2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 
 const plans = [
     {
@@ -85,8 +87,27 @@ const plans = [
 ];
 
 export default function LandingPage() {
-    const { isAuthenticated } = useAuth();
+    const { isAuthenticated, loginAsDemo } = useAuth();
+    const navigate = useNavigate();
+    const { toast } = useToast();
+    const [demoLoading, setDemoLoading] = useState(false);
     const primaryCtaHref = isAuthenticated ? "/dashboard" : "/auth/signup?plan=PLAN_START";
+
+    const startDemo = async () => {
+        setDemoLoading(true);
+        try {
+            await loginAsDemo("CLIENT");
+            navigate("/dashboard");
+        } catch (err) {
+            toast({
+                title: "Demo indisponível",
+                description: "Tente novamente em instantes. O modo demo não usa dados reais.",
+                variant: "destructive"
+            });
+        } finally {
+            setDemoLoading(false);
+        }
+    };
 
     return (
         <div className="min-h-screen bg-white text-slate-900">
@@ -110,6 +131,14 @@ export default function LandingPage() {
                         ) : (
                             <>
                                 <Link to="/auth/login" className="text-sm font-semibold text-slate-200 hover:text-emerald-300">Entrar</Link>
+                                <Button
+                                    variant="outline"
+                                    className="border-emerald-300/60 text-emerald-100 hover:text-emerald-300"
+                                    onClick={startDemo}
+                                    disabled={demoLoading}
+                                >
+                                    {demoLoading ? "Carregando demo..." : "Ver demo"}
+                                </Button>
                                 <Link to={primaryCtaHref}>
                                     <Button className="bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/30">Começar</Button>
                                 </Link>
@@ -144,6 +173,15 @@ export default function LandingPage() {
                                     Começar com Proteção Fiscal <ArrowRight className="ml-2 h-4 w-4" />
                                 </Button>
                             </Link>
+                            <Button
+                                size="lg"
+                                variant="outline"
+                                className="border-emerald-300/60 text-white hover:bg-emerald-500/10"
+                                onClick={startDemo}
+                                disabled={demoLoading}
+                            >
+                                {demoLoading ? "Abrindo demo..." : "Experimentar demo agora"}
+                            </Button>
                             <a href="#pricing">
                                 <Button size="lg" variant="outline" className="border-slate-700 text-white hover:bg-white/10">
                                     Ver planos e proteção
@@ -304,6 +342,15 @@ export default function LandingPage() {
                         <Link to={primaryCtaHref}>
                             <Button size="lg" className="bg-white text-slate-900 hover:bg-slate-100 shadow-lg shadow-slate-900/20">Começar com Proteção Fiscal</Button>
                         </Link>
+                        <Button
+                            size="lg"
+                            variant="outline"
+                            className="border-emerald-300/60 text-white hover:bg-emerald-500/10"
+                            onClick={startDemo}
+                            disabled={demoLoading}
+                        >
+                            {demoLoading ? "Abrindo demo..." : "Acessar demo sem cadastro"}
+                        </Button>
                         <a href="#pricing">
                             <Button size="lg" variant="outline" className="border-slate-700 text-white hover:bg-white/10">Comparar planos</Button>
                         </a>

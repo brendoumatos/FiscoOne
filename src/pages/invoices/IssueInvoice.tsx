@@ -10,13 +10,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
-import { Loader2, CheckCircle2, ChevronRight, Calculator, FileCode } from "lucide-react";
+import { Loader2, CheckCircle2, ChevronRight, Calculator, FileCode, ShieldAlert } from "lucide-react";
 import { nfseXmlBuilder } from "@/services/xml/nfse";
 import { useCertificate } from "@/contexts/CertificateContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { useSubscription } from "@/contexts/SubscriptionContext";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { InvoiceStatus, type Invoice } from "@/types/invoice";
+import { PlanShield } from "@/components/common/PlanShield";
+import { usePlanState } from "@/contexts/PlanStateContext";
 
 // Schema for the form
 const issueInvoiceSchema = z.object({
@@ -145,21 +146,33 @@ export default function IssueInvoice() {
     };
 
     const { currentCompany } = useAuth();
-    const { canIssueInvoice } = useSubscription();
+    const { data: planState, usage, status, refresh } = usePlanState();
     const [blocked, setBlocked] = useState(false);
     const [blockReason, setBlockReason] = useState<string | null>(null);
 
+    const invoicesUsed = usage?.invoices.used ?? planState?.usage.invoices.used ?? 0;
+    const invoicesLimit = planState?.usage.invoices.limit ?? null;
+    const blockedByStatus = (status || 'ACTIVE') === 'BLOCKED';
+    const blockedByLimit = invoicesLimit ? invoicesUsed >= invoicesLimit : false;
+    const isBlocked = blockedByStatus || blockedByLimit;
+
+    useEffect(() => {
+        if (isBlocked) {
+            setBlocked(true);
+            setBlockReason(planState?.reason || 'Limite do plano atingido. Faça upgrade para continuar emitindo.');
+        }
+    }, [isBlocked, planState?.reason]);
+
     const onSubmit = async (data: IssueInvoiceFormData) => {
         if (!currentCompany) return;
-        if (!canIssueInvoice()) {
+        if (isBlocked) {
             setBlocked(true);
-            setBlockReason('Seu plano atual não permite emitir novas notas. Faça upgrade ou compre créditos.');
+            setBlockReason(planState?.reason || 'Seu plano atual não permite emitir novas notas. Faça upgrade ou compre créditos.');
             return;
         }
         setIsSubmitting(true);
         try {
             await invoiceService.createInvoice({
-                companyId: currentCompany.id,
                 amount: data.serviceItem.amount,
                 borrower: {
                     ...data.borrower,
@@ -178,6 +191,7 @@ export default function IssueInvoice() {
             setBlockReason('Não foi possível emitir a nota. Verifique limites do plano ou tente novamente.');
         } finally {
             setIsSubmitting(false);
+            await refresh();
         }
     };
 
@@ -194,12 +208,19 @@ export default function IssueInvoice() {
                     Emitir Nova <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-teal-500">Nota Fiscal</span>
                 </h2>
                 <p className="text-slate-500 mt-1 text-lg">Preencha os dados abaixo para gerar sua NFS-e com segurança.</p>
+                <div className="mt-4 max-w-md">
+                    <PlanShield />
+                </div>
                 {blocked && (
-                    <div className="mt-4 p-3 rounded-lg border border-amber-200 bg-amber-50 text-amber-800 text-sm">
-                        {blockReason}
-                        <div className="mt-2 flex gap-2">
-                            <Button size="sm" variant="outline" onClick={() => navigate('/dashboard/pricing')}>Ver planos</Button>
-                            <Button size="sm" variant="default" onClick={() => navigate('/dashboard/subscription')}>Fazer upgrade</Button>
+                    <div className="mt-4 p-3 rounded-lg border border-amber-200 bg-amber-50 text-amber-800 text-sm flex gap-3">
+                        <ShieldAlert className="h-4 w-4 mt-0.5" />
+                        <div className="space-y-2">
+                            <div className="font-semibold">Emissão bloqueada</div>
+                            <div>{blockReason}</div>
+                            <div className="mt-2 flex gap-2">
+                                <Button size="sm" variant="outline" onClick={() => navigate('/dashboard/pricing')}>Ver planos</Button>
+                                <Button size="sm" variant="default" onClick={() => navigate('/dashboard/settings?tab=billing')}>Gerenciar assinatura</Button>
+                            </div>
                         </div>
                     </div>
                 )}

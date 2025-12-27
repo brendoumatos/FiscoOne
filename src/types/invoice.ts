@@ -62,7 +62,6 @@ export interface Invoice {
 }
 
 export interface CreateInvoiceDTO {
-    companyId: string;
     amount: number;
     borrower: Borrower;
     items: InvoiceItem[];

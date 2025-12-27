@@ -25,6 +25,7 @@ export const companySchema = z.object({
     legalName: z.string().min(3, "Legal name required"),
     tradeName: z.string().min(3, "Trade name required"),
     taxRegime: z.enum(TAX_REGIMES),
+    planCode: z.string().optional(),
     cnae: z.string().optional(),
     // Growth Profile
     averageMonthlyRevenue: z.number().optional(),
@@ -43,4 +44,5 @@ export interface Company extends CompanyData {
     createdAt: string;
     name: string; // Alias for tradeName for UI compatibility
     plan: string; // e.g. 'Pro', 'Enterprise'
+    planCode?: string;
 }

@@ -6,9 +6,28 @@ export interface PricingInsight {
     confidence_score: number;
 }
 
+export interface PublicPlanEntitlement {
+    key: string;
+    limit: number | null;
+}
+
+export interface PublicPlan {
+    code: string;
+    name: string;
+    description?: string | null;
+    priceMonthly: number | null;
+    priceYearly: number | null;
+    entitlements: PublicPlanEntitlement[];
+}
+
 export const pricingService = {
-    async getInsight(companyId: string): Promise<PricingInsight | null> {
-        const response = await api.get(`/pricing/${companyId}/insight`);
+    async getInsight(): Promise<PricingInsight | null> {
+        const response = await api.get('/pricing/insight');
+        return response.data;
+    },
+
+    async getPublicPlans(): Promise<PublicPlan[]> {
+        const response = await api.get('/pricing/plans');
         return response.data;
     }
 }

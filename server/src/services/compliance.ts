@@ -32,10 +32,14 @@ export const complianceService = {
 
         // 2. Lock the period
         await pool.query(
-            `INSERT INTO fiscal_periods (company_id, ref_year, ref_month, status, closed_at, closed_by_user_id, summary_snapshot)
-             VALUES ($1, $2, $3, 'LOCKED', NOW(), $4, $5)
-             ON CONFLICT (company_id, ref_year, ref_month) 
-             DO UPDATE SET status = 'LOCKED', closed_at = NOW(), closed_by_user_id = $4, summary_snapshot = $5`,
+            `MERGE fiscal_periods AS target
+             USING (SELECT $1 AS company_id, $2 AS ref_year, $3 AS ref_month) AS src
+             ON target.company_id = src.company_id AND target.ref_year = src.ref_year AND target.ref_month = src.ref_month
+             WHEN MATCHED THEN
+                 UPDATE SET status = 'LOCKED', closed_at = SYSUTCDATETIME(), closed_by_user_id = $4, summary_snapshot = $5
+             WHEN NOT MATCHED THEN
+                 INSERT (company_id, ref_year, ref_month, status, closed_at, closed_by_user_id, summary_snapshot)
+                 VALUES (src.company_id, src.ref_year, src.ref_month, 'LOCKED', SYSUTCDATETIME(), $4, $5);`,
             [companyId, year, month, userId, summarySnapshot]
         );
 
@@ -58,7 +62,7 @@ export const complianceService = {
         // 1. Expire current config (set valid_until = NOW)
         await pool.query(
             `UPDATE fiscal_config_history 
-             SET valid_until = NOW() 
+             SET valid_until = SYSUTCDATETIME() 
              WHERE company_id = $1 AND valid_until IS NULL`,
             [companyId]
         );

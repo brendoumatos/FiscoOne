@@ -38,9 +38,10 @@ export default function Signup() {
             navigate("/onboarding");
         } catch (err: any) {
             console.error(err);
+            const apiMessage = err?.response?.data?.message;
             toast({
                 title: "Erro no cadastro",
-                description: "Não foi possível criar sua conta. Tente novamente.",
+                description: apiMessage || "Não foi possível criar sua conta. Tente novamente.",
                 variant: "destructive"
             });
         }

@@ -29,7 +29,6 @@ CREATE TABLE IF NOT EXISTS sessions (
 CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires_at);
 
--- 2. Companies Table
 CREATE TABLE IF NOT EXISTS companies (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     owner_id UUID NOT NULL,
@@ -54,6 +53,61 @@ CREATE TABLE IF NOT EXISTS companies (
     active BOOLEAN DEFAULT TRUE,
     
     CONSTRAINT fk_companies_users FOREIGN KEY (owner_id) REFERENCES users(id)
+);
+
+-- Admin Control Plane Tables
+CREATE TABLE IF NOT EXISTS admin_users (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    email TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    role TEXT NOT NULL CHECK (role IN ('SUPER_ADMIN','PLATFORM_ADMIN','SUPPORT_ADMIN')),
+    mfa_secret TEXT,
+    ip_allowlist JSONB,
+    active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS admin_sessions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    admin_id UUID NOT NULL REFERENCES admin_users(id),
+    refresh_token TEXT NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL,
+    ip_address TEXT,
+    user_agent TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS admin_audit_logs (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    actor_admin_id UUID NOT NULL REFERENCES admin_users(id),
+    action TEXT NOT NULL,
+    target_type TEXT NOT NULL,
+    target_id TEXT,
+    before_state JSONB,
+    after_state JSONB,
+    ip_address TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS plan_versions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    plan_id UUID NOT NULL REFERENCES plans(id),
+    version INT NOT NULL,
+    valid_from TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    config_snapshot JSONB NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE(plan_id, version)
+);
+
+CREATE TABLE IF NOT EXISTS impersonation_sessions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    admin_id UUID NOT NULL REFERENCES admin_users(id),
+    company_id UUID NOT NULL REFERENCES companies(id),
+    user_id UUID REFERENCES users(id),
+    expires_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    active BOOLEAN NOT NULL DEFAULT TRUE,
+    terminated_at TIMESTAMPTZ
 );
 
 CREATE INDEX IF NOT EXISTS idx_companies_owner ON companies(owner_id);
@@ -235,7 +289,11 @@ CREATE TABLE IF NOT EXISTS plans (
     name VARCHAR(100) NOT NULL,
     description_pt_br TEXT,
     price_monthly DECIMAL(10, 2) DEFAULT 0,
+    price_yearly DECIMAL(10, 2),
     invoice_limit INTEGER DEFAULT 0, -- 0 = unlimited? No, let's use -1 for unlimited
+    monthly_invoice_limit INTEGER,
+    seat_limit INTEGER,
+    accountant_limit INTEGER,
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -269,6 +327,10 @@ CREATE TABLE IF NOT EXISTS subscriptions (
     CONSTRAINT fk_sub_company FOREIGN KEY (company_id) REFERENCES companies(id),
     CONSTRAINT fk_sub_plan FOREIGN KEY (plan_id) REFERENCES plans(id)
 );
+
+-- Canonical alignment columns
+ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS started_at TIMESTAMP;
+ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP;
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_subscriptions_company_id ON subscriptions(company_id);
 

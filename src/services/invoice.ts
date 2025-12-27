@@ -9,21 +9,14 @@ export const invoiceService = {
         return response.data;
     },
 
-    async getInvoices(companyId: string): Promise<Invoice[]> {
-        const response = await api.get('/invoices', {
-            params: { companyId }
-        });
+    async getInvoices(): Promise<Invoice[]> {
+        const response = await api.get('/invoices');
         return response.data;
     },
 
-    async getStats(_companyId: string): Promise<any> {
-        // Placeholder for future backend implementation
-        return {
-            monthlyRevenue: 0,
-            annualRevenue: 0,
-            activeInvoices: 0,
-            averageTicket: 0
-        };
+    async getStats(): Promise<any> {
+        const response = await api.get('/dashboard/summary');
+        return response.data;
     },
 
     async getServiceCodes() {

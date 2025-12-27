@@ -20,20 +20,20 @@ export const readinessService = {
 
         // 2. Calculate Avg Revenue & Stability (Last 6 months) via CTE
         const revenueResult = await pool.query(
-            `WITH MonthlyStats AS (
-                SELECT 
-                    to_char(issue_date, 'YYYY-MM') as month_str, 
-                    SUM(amount) as total_amount
-                FROM invoices 
-                WHERE company_id = $1 
-                  AND status = 'ISSUED' 
-                  AND issue_date > NOW() - INTERVAL '6 months'
-                GROUP BY 1
-             )
-             SELECT 
-                COALESCE(AVG(total_amount), 0) as avg_revenue,
-                COUNT(*) as month_count
-             FROM MonthlyStats`,
+                        `WITH MonthlyStats AS (
+                                SELECT 
+                                        FORMAT(issue_date, 'yyyy-MM') as month_str, 
+                                        SUM(amount) as total_amount
+                                FROM invoices 
+                                WHERE company_id = $1 
+                                    AND status = 'ISSUED' 
+                                    AND issue_date > DATEADD(month, -6, SYSUTCDATETIME())
+                                GROUP BY FORMAT(issue_date, 'yyyy-MM')
+                         )
+                         SELECT 
+                                COALESCE(AVG(total_amount), 0) as avg_revenue,
+                                COUNT(*) as month_count
+                         FROM MonthlyStats`,
             [companyId]
         );
 
@@ -51,7 +51,7 @@ export const readinessService = {
         // 3. Tax Regularity (Check if any late obligations recently)
         const lateResult = await pool.query(
             `SELECT COUNT(*) as count FROM fiscal_obligations 
-             WHERE company_id = $1 AND status = 'LATE' AND due_date > NOW() - INTERVAL '3 months'`,
+             WHERE company_id = $1 AND status = 'LATE' AND due_date > DATEADD(month, -3, SYSUTCDATETIME())`,
             [companyId]
         );
         const hasRecentLateTaxes = parseInt(lateResult.rows[0]?.count || '0') > 0;
@@ -90,7 +90,7 @@ export const readinessService = {
             `SELECT status, profile_summary_json, computed_at 
              FROM financial_readiness_profiles 
              WHERE company_id = $1 
-             ORDER BY computed_at DESC LIMIT 1`,
+             ORDER BY computed_at DESC OFFSET 0 ROWS FETCH NEXT 1 ROWS ONLY`,
             [companyId]
         );
 

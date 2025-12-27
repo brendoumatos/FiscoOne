@@ -12,11 +12,13 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Plus, Download, Search, Filter, DollarSign, FileText, ArrowUpRight } from "lucide-react";
+import { Plus, Download, Search, Filter, DollarSign, FileText, ArrowUpRight, ShieldAlert } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { PaymentModal } from "@/components/payments/PaymentModal";
+import { PlanShield } from "@/components/common/PlanShield";
+import { usePlanState } from "@/contexts/PlanStateContext";
 
 const StatusBadge = ({ status }: { status: InvoiceStatus }) => {
     const styles = {
@@ -46,30 +48,72 @@ import { useAuth } from "@/contexts/AuthContext";
 
 export default function InvoiceList() {
     const { currentCompany } = useAuth();
+    const { data: planState, usage, limits, status } = usePlanState();
 
     const { data: invoices, isLoading } = useQuery<Invoice[]>({
         queryKey: ['invoices', currentCompany?.id],
         queryFn: () => {
             if (!currentCompany) return Promise.resolve([]);
-            return invoiceService.getInvoices(currentCompany.id);
+            return invoiceService.getInvoices();
         },
         enabled: !!currentCompany
     });
+
+    const invoicesUsed = usage?.invoices.used ?? planState?.usage.invoices.used ?? 0;
+    const invoicesLimit = limits?.invoices ?? planState?.usage.invoices.limit ?? null;
+    const nearLimit = invoicesLimit ? invoicesUsed / invoicesLimit >= 0.8 : false;
+    const blockedByLimit = invoicesLimit ? invoicesUsed >= invoicesLimit : false;
+    const blockedByStatus = (status || 'ACTIVE') === 'BLOCKED';
+    const isBlocked = blockedByLimit || blockedByStatus;
 
     return (
         <div className="space-y-8 animate-in fade-in duration-500 pb-20">
             {/* Header with Comfort Spacing */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div>
+                <div className="space-y-2 w-full max-w-2xl">
                     <h1 className="text-3xl font-bold tracking-tight text-slate-900">Notas Fiscais</h1>
                     <p className="text-slate-500 mt-1">Gerencie, emita e acompanhe todas as suas notas fiscais.</p>
+                    <div className="max-w-xl">
+                        <PlanShield />
+                    </div>
                 </div>
                 <Link to="/dashboard/invoices/issue">
-                    <Button className="bg-slate-900 hover:bg-slate-800 text-white shadow-lg shadow-slate-900/20 px-6 rounded-lg transition-all hover:scale-105 active:scale-95">
+                    <Button
+                        className="bg-slate-900 hover:bg-slate-800 text-white shadow-lg shadow-slate-900/20 px-6 rounded-lg transition-all hover:scale-105 active:scale-95"
+                        disabled={isBlocked}
+                    >
                         <Plus className="mr-2 h-4 w-4" /> Emitir Nova Nota
                     </Button>
                 </Link>
             </div>
+
+            {isBlocked && (
+                <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-amber-800 text-sm">
+                    <ShieldAlert className="h-4 w-4 mt-0.5" />
+                    <div className="space-y-2">
+                        <div className="font-semibold">Limite do plano atingido ou bloqueado</div>
+                        <p className="text-amber-800/90">Você precisa fazer upgrade ou regularizar o pagamento para continuar emitindo notas.</p>
+                        <div className="flex gap-2">
+                            <Link to="/dashboard/settings?tab=billing">
+                                <Button size="sm" variant="default">Gerenciar assinatura</Button>
+                            </Link>
+                            <Link to="/dashboard/pricing">
+                                <Button size="sm" variant="outline" className="border-amber-200 text-amber-700 hover:bg-amber-100">Ver planos</Button>
+                            </Link>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {!isBlocked && nearLimit && (
+                <div className="flex items-start gap-3 rounded-lg border border-amber-100 bg-amber-50/70 p-3 text-amber-800 text-sm">
+                    <ShieldAlert className="h-4 w-4 mt-0.5" />
+                    <div>
+                        <div className="font-semibold">Você está a {Math.round((invoicesUsed / (invoicesLimit || 1)) * 100)}% do limite de notas.</div>
+                        <p className="text-amber-700">Considere reforçar seu plano antes de um bloqueio automático.</p>
+                    </div>
+                </div>
+            )}
 
             {/* Filter Bar */}
             <div className="flex flex-col sm:flex-row gap-4 items-center">

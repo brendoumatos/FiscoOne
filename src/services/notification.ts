@@ -1,44 +1,34 @@
 
+import api from './api';
 import { NotificationType, type Notification } from "@/types/notification";
 
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
-const mockNotifications: Notification[] = [
-    {
-        id: '1',
-        title: 'Guia DAS Disponível',
-        message: 'A guia DAS referente a 11/2024 já está disponível para pagamento.',
-        type: NotificationType.WARNING,
-        read: false,
-        createdAt: new Date().toISOString()
-    },
-    {
-        id: '2',
-        title: 'Nota Fiscal Emitida',
-        message: 'A NFS-e #204 foi autorizada com sucesso.',
-        type: NotificationType.SUCCESS,
-        read: false,
-        createdAt: new Date(Date.now() - 3600000).toISOString()
-    },
-    {
-        id: '3',
-        title: 'Bem-vindo ao FiscoOne',
-        message: 'Complete seu perfil para aproveitar todas as funcionalidades.',
-        type: NotificationType.INFO,
-        read: true,
-        createdAt: new Date(Date.now() - 86400000).toISOString()
-    }
-];
+const normalize = (event: any): Notification => ({
+    id: event.id || crypto.randomUUID?.() || String(Date.now()),
+    title: event.title || event.type || 'Atualização',
+    message: event.description || event.message || 'Nova atividade registrada.',
+    type: (event.type as NotificationType) || NotificationType.INFO,
+    read: Boolean(event.read ?? false),
+    createdAt: event.createdAt || event.timestamp || new Date().toISOString()
+});
 
 export const notificationService = {
     async getNotifications(): Promise<Notification[]> {
-        await delay(500);
-        return mockNotifications;
+        try {
+            const { data } = await api.get('/timeline');
+            if (Array.isArray(data)) return data.map(normalize);
+            return [];
+        } catch (error) {
+            console.error('Erro ao carregar notificações', error);
+            return [];
+        }
     },
 
     async markAsRead(id: string): Promise<void> {
-        await delay(200);
-        const notif = mockNotifications.find(n => n.id === id);
-        if (notif) notif.read = true;
+        // Backend ainda não expõe persistência de leitura; silenciosamente ignora.
+        try {
+            await api.post('/notifications/read', { id });
+        } catch (error) {
+            console.error('Erro ao marcar notificação como lida', error);
+        }
     }
 };

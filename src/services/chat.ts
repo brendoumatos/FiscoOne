@@ -1,39 +1,44 @@
 
+import api from './api';
 import { type Message } from "@/types/chat";
 
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
-const mockMessages: Message[] = [
-    { id: '1', senderId: 'cont', text: 'Olá! Tudo bem? Vi que emitiu a nota para a Tech Solutions.', timestamp: new Date(Date.now() - 100000).toISOString(), isMine: false },
-    { id: '2', senderId: 'me', text: 'Oi! Sim, já mandei pra eles.', timestamp: new Date(Date.now() - 50000).toISOString(), isMine: true },
-];
+const normalize = (item: any): Message => ({
+    id: item.id || crypto.randomUUID?.() || String(Date.now()),
+    senderId: item.senderId || item.from || 'system',
+    text: item.text || item.message || '',
+    timestamp: item.timestamp || item.createdAt || new Date().toISOString(),
+    isMine: Boolean(item.isMine ?? item.senderId === 'me')
+});
 
 export const chatService = {
     async getMessages(): Promise<Message[]> {
-        await delay(300);
-        return [...mockMessages];
+        try {
+            const { data } = await api.get('/chat/messages');
+            return Array.isArray(data) ? data.map(normalize) : [];
+        } catch (error) {
+            console.error('Erro ao carregar mensagens', error);
+            return [];
+        }
     },
 
     async sendMessage(text: string): Promise<Message> {
-        await delay(300);
-        return {
-            id: Math.random().toString(),
-            senderId: 'me',
-            text,
-            timestamp: new Date().toISOString(),
-            isMine: true
-        };
+        try {
+            const { data } = await api.post('/chat/messages', { text });
+            if (data) return normalize(data);
+        } catch (error) {
+            console.error('Erro ao enviar mensagem', error);
+        }
+
+        return normalize({ senderId: 'me', text });
     },
 
-    // Echo function for demo
     async waitForReply(): Promise<Message> {
-        await delay(2000);
-        return {
-            id: Math.random().toString(),
-            senderId: 'cont',
-            text: 'Perfeito! Se precisar de ajuda com o imposto, me avise.',
-            timestamp: new Date().toISOString(),
-            isMine: false
+        try {
+            const { data } = await api.get('/chat/messages/wait');
+            if (data) return normalize(data);
+        } catch (error) {
+            console.error('Erro ao aguardar resposta', error);
         }
+        return normalize({ senderId: 'system', text: 'Sem novas mensagens no momento.' });
     }
 };

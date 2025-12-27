@@ -31,9 +31,11 @@ export const referralService = {
 
         // Insert invite
         await pool.query(
-            `INSERT INTO referral_invites (referral_code_id, invited_company_id, status)
-             VALUES ($1, $2, 'PENDING')
-             ON CONFLICT (invited_company_id) DO NOTHING`,
+            `IF NOT EXISTS (SELECT 1 FROM referral_invites WHERE invited_company_id = $2)
+             BEGIN
+                 INSERT INTO referral_invites (referral_code_id, invited_company_id, status)
+                 VALUES ($1, $2, 'PENDING')
+             END`,
             [codeId, invitedCompanyId]
         );
         return true;

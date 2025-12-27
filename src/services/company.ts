@@ -1,29 +1,5 @@
 import api from './api';
-import type { Company } from '../types/company';
-
-export interface CompanyData {
-    cnpj: string;
-    legalName: string;
-    tradeName: string;
-    taxRegime: string;
-    cnae?: string;
-    address: {
-        zipCode: string;
-        street: string;
-        number: string;
-        neighborhood: string;
-        city: string;
-        state: string;
-    };
-    bankInfo?: {
-        bankName: string;
-        agency: string;
-        account: string;
-        accountType: string;
-        pixKey?: string;
-    };
-    planCode?: string;
-}
+import type { Company, CompanyData } from '../types/company';
 
 export const companyService = {
     async createCompany(data: CompanyData): Promise<Company> {

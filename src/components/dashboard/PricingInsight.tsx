@@ -8,7 +8,7 @@ export function PricingInsight() {
     const { currentCompany } = useAuth();
     const { data } = useQuery({
         queryKey: ['pricing-insight', currentCompany?.id],
-        queryFn: () => currentCompany ? pricingService.getInsight(currentCompany.id) : null,
+        queryFn: () => currentCompany ? pricingService.getInsight() : null,
         enabled: !!currentCompany
     });
 

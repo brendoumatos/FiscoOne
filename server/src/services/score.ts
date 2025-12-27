@@ -17,7 +17,7 @@ export const scoreService = {
         // For MVP, we'll check if table exists and query, or default to 0 deductions if empty.
         const lateResult = await pool.query(
             `SELECT COUNT(*) as count FROM fiscal_obligations 
-             WHERE company_id = $1 AND status = 'LATE' AND due_date > NOW() - INTERVAL '12 months'`,
+             WHERE company_id = $1 AND status = 'LATE' AND due_date > DATEADD(month, -12, SYSUTCDATETIME())`,
             [companyId]
         );
         const lateCount = parseInt(lateResult.rows[0]?.count || '0');
@@ -32,7 +32,7 @@ export const scoreService = {
         // Assume retrieving revenue from invoices
         const revenueResult = await pool.query(
             `SELECT SUM(amount) as total FROM invoices 
-             WHERE company_id = $1 AND issue_date > NOW() - INTERVAL '12 months' AND status = 'ISSUED'`,
+             WHERE company_id = $1 AND issue_date > DATEADD(month, -12, SYSUTCDATETIME()) AND status = 'ISSUED'`,
             [companyId]
         );
         const annualRevenue = parseFloat(revenueResult.rows[0]?.total || '0');
@@ -103,7 +103,7 @@ export const scoreService = {
              SELECT COUNT(*) as count 
              FROM users u
              JOIN CompanyUsers cu ON u.id = cu.user_id
-             WHERE u.last_login_at < NOW() - INTERVAL '30 days'`,
+             WHERE u.last_login_at < DATEADD(day, -30, SYSUTCDATETIME())`,
             [companyId]
         );
         const inactiveCount = parseInt(inactiveRes.rows[0]?.count || '0');
@@ -137,7 +137,7 @@ export const scoreService = {
             `SELECT score, risk_level, explanation_json, computed_at 
              FROM fiscal_trust_scores 
              WHERE company_id = $1 
-             ORDER BY computed_at DESC LIMIT 1`,
+             ORDER BY computed_at DESC OFFSET 0 ROWS FETCH NEXT 1 ROWS ONLY`,
             [companyId]
         );
 

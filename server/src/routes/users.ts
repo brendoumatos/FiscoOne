@@ -2,37 +2,30 @@ import { Router, Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
 import { requireRole, PERMISSIONS } from '../middleware/requireRole';
 import { protectedCompanyRouter } from '../utils/protectedCompanyRouter';
-import { subscriptionService } from '../services/subscription';
 import { auditLogService } from '../services/auditLog';
 import { pool } from '../config/db';
+import { sendError } from '../utils/errorCatalog';
 
 const router = protectedCompanyRouter();
 
 // Add collaborator (COLLABORATOR role). Accountants are delegated elsewhere and do not consume seats.
-router.post('/:companyId/users', requireRole(['OWNER']), async (req: AuthRequest, res: Response) => {
-    const { companyId } = req.params;
+router.post('/users', requireRole(['OWNER']), async (req: AuthRequest, res: Response) => {
+    const companyId = req.user?.companyId;
     const { userId } = req.body;
-    if (!userId) return res.status(400).json({ message: 'userId obrigatório' });
-
-    // Entitlement: seat limit
-    const entitlement = await subscriptionService.checkEntitlement(companyId, 'ADD_COLLABORATOR', { req });
-    if (!entitlement.allowed) {
-        return res.status(403).json({
-            message: entitlement.reason || 'Limite de assentos atingido',
-            code: 'ENTITLEMENT_DENIED',
-            upgrade_suggestion: entitlement.upgrade_suggestion,
-            current_usage: entitlement.current_usage,
-            limit: entitlement.limit
-        });
-    }
+    if (!userId) return sendError(res, 'VALIDATION_ERROR', { reason: 'userId obrigatório' });
 
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
         await client.query(
-            `INSERT INTO company_members (company_id, user_id, role, status)
-             VALUES ($1, $2, 'COLLABORATOR', 'ACTIVE')
-             ON CONFLICT (company_id, user_id) DO UPDATE SET status = 'ACTIVE', role = 'COLLABORATOR'`,
+            `MERGE company_members AS target
+             USING (SELECT $1 AS company_id, $2 AS user_id) AS src
+             ON (target.company_id = src.company_id AND target.user_id = src.user_id)
+             WHEN MATCHED THEN
+                 UPDATE SET status = 'ACTIVE', role = 'COLLABORATOR'
+             WHEN NOT MATCHED THEN
+                 INSERT (company_id, user_id, role, status)
+                 VALUES (src.company_id, src.user_id, 'COLLABORATOR', 'ACTIVE');`,
             [companyId, userId]
         );
 
@@ -49,15 +42,16 @@ router.post('/:companyId/users', requireRole(['OWNER']), async (req: AuthRequest
     } catch (error) {
         await client.query('ROLLBACK');
         console.error('Add collaborator failed:', error);
-        res.status(500).json({ message: 'Erro ao adicionar colaborador' });
+        sendError(res, 'INTERNAL_ERROR', { reason: 'Erro ao adicionar colaborador' });
     } finally {
         client.release();
     }
 });
 
 // Remove collaborator
-router.delete('/:companyId/users/:userId', requireRole(['OWNER']), async (req: AuthRequest, res: Response) => {
-    const { companyId, userId } = req.params;
+router.delete('/users/:userId', requireRole(['OWNER']), async (req: AuthRequest, res: Response) => {
+    const companyId = req.user?.companyId;
+    const { userId } = req.params;
 
     const client = await pool.connect();
     try {
@@ -69,7 +63,7 @@ router.delete('/:companyId/users/:userId', requireRole(['OWNER']), async (req: A
 
         if (del.rowCount === 0) {
             await client.query('ROLLBACK');
-            return res.status(404).json({ message: 'Colaborador não encontrado' });
+            return sendError(res, 'NOT_FOUND', { reason: 'Colaborador não encontrado' });
         }
 
         await auditLogService.log({
@@ -85,7 +79,7 @@ router.delete('/:companyId/users/:userId', requireRole(['OWNER']), async (req: A
     } catch (error) {
         await client.query('ROLLBACK');
         console.error('Remove collaborator failed:', error);
-        res.status(500).json({ message: 'Erro ao remover colaborador' });
+        sendError(res, 'INTERNAL_ERROR', { reason: 'Erro ao remover colaborador' });
     } finally {
         client.release();
     }

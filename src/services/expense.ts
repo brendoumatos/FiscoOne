@@ -1,52 +1,30 @@
 
-import { ExpenseCategory, type Expense } from "@/types/expense";
-
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
-const mockExpenses: Expense[] = [
-    {
-        id: '1',
-        description: 'Assinatura Adobe Creative Cloud',
-        amount: 299.90,
-        date: new Date().toISOString(),
-        category: ExpenseCategory.SOFTWARE,
-        hasReceipt: true,
-        status: 'PAID'
-    },
-    {
-        id: '2',
-        description: 'Aluguel Escritório Coworking',
-        amount: 1500.00,
-        date: new Date(new Date().setDate(5)).toISOString(),
-        category: ExpenseCategory.OFFICE,
-        hasReceipt: true,
-        status: 'PENDING'
-    },
-    {
-        id: '3',
-        description: 'Campanha Google Ads',
-        amount: 500.00,
-        date: new Date(new Date().setDate(10)).toISOString(),
-        category: ExpenseCategory.MARKETING,
-        hasReceipt: false,
-        status: 'PAID'
-    }
-];
+import api from './api';
+import { type Expense } from "@/types/expense";
 
 export const expenseService = {
     async getExpenses(): Promise<Expense[]> {
-        await delay(500);
-        return mockExpenses;
+        try {
+            const { data } = await api.get('/expenses');
+            return Array.isArray(data) ? data : [];
+        } catch (error) {
+            console.error('Erro ao carregar despesas', error);
+            return [];
+        }
     },
 
     async addExpense(expense: Omit<Expense, 'id' | 'hasReceipt'>): Promise<Expense> {
-        await delay(500);
-        const newExpense = {
+        try {
+            const { data } = await api.post('/expenses', expense);
+            if (data) return data;
+        } catch (error) {
+            console.error('Erro ao adicionar despesa', error);
+        }
+
+        return {
             ...expense,
-            id: Math.random().toString(),
+            id: crypto.randomUUID?.() || String(Date.now()),
             hasReceipt: false
-        };
-        mockExpenses.push(newExpense);
-        return newExpense;
+        } as Expense;
     }
 };

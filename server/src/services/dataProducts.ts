@@ -20,8 +20,8 @@ export const dataProductsService = {
              FROM invoices 
              WHERE company_id = $1 
                AND status = 'ISSUED' 
-               AND issue_date >= DATE_TRUNC('month', CURRENT_DATE - INTERVAL '1 month')
-               AND issue_date < DATE_TRUNC('month', CURRENT_DATE)`,
+                             AND issue_date >= DATEADD(month, DATEDIFF(month, 0, SYSUTCDATETIME()) - 1, 0)
+                             AND issue_date < DATEADD(month, DATEDIFF(month, 0, SYSUTCDATETIME()), 0)`,
             [companyId]
         );
         const myRevenue = parseFloat(myStatsRes.rows[0]?.revenue || '0');
@@ -33,7 +33,7 @@ export const dataProductsService = {
              WHERE tax_regime = $1 
                AND sector_code = $2 
                AND region_macro = $3
-               AND reference_month = DATE_TRUNC('month', CURRENT_DATE - INTERVAL '1 month')::DATE`,
+                             AND reference_month = DATEADD(month, DATEDIFF(month, 0, SYSUTCDATETIME()) - 1, 0)`,
             [profile.tax_regime, profile.sector_code, profile.address_state]
         );
 
@@ -75,7 +75,7 @@ export const dataProductsService = {
             await pool.query(
                 `INSERT INTO benchmark_insights_cache 
                  (company_id, category, insight_key, message_pt_br, comparison_data, expires_at)
-                 VALUES ($1, $2, $3, $4, $5, CURRENT_DATE + INTERVAL '7 days')`,
+                 VALUES ($1, $2, $3, $4, $5, DATEADD(day, 7, SYSUTCDATETIME()))`,
                 [companyId, insight.category, insight.key, insight.message, insight.data]
             );
         }
@@ -91,7 +91,7 @@ export const dataProductsService = {
             `SELECT reference_month, avg_revenue 
              FROM mv_benchmark_revenue 
              WHERE sector_code = $1 AND region_macro = $2
-             ORDER BY reference_month DESC LIMIT 6`,
+             ORDER BY reference_month DESC OFFSET 0 ROWS FETCH NEXT 6 ROWS ONLY`,
             [sectorCode, state]
         );
         return res.rows;

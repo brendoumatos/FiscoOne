@@ -1,4 +1,6 @@
 
+import api from './api';
+
 export interface ApiKey {
     id: string;
     name: string;
@@ -7,25 +9,36 @@ export interface ApiKey {
     lastUsed?: string;
 }
 
-const mockKeys: ApiKey[] = [
-    { id: '1', name: 'Produção Key 1', prefix: 'sk_live_83k...', createdAt: '2024-01-15', lastUsed: '2024-05-20' },
-];
-
 export const developerService = {
     async getKeys(): Promise<ApiKey[]> {
-        await new Promise(resolve => setTimeout(resolve, 800));
-        return [...mockKeys];
+        try {
+            const { data } = await api.get('/developer/keys');
+            return Array.isArray(data) ? data : [];
+        } catch (error) {
+            console.error('Erro ao carregar chaves de API', error);
+            return [];
+        }
     },
     async generateKey(name: string): Promise<ApiKey> {
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        try {
+            const { data } = await api.post('/developer/keys', { name });
+            if (data) return data;
+        } catch (error) {
+            console.error('Erro ao gerar chave de API', error);
+        }
+
         return {
-            id: Math.random().toString(),
+            id: crypto.randomUUID?.() || String(Date.now()),
             name,
-            prefix: 'sk_live_' + Math.random().toString(36).substring(7),
+            prefix: 'sk_live_' + Math.random().toString(36).substring(2, 10),
             createdAt: new Date().toISOString()
         };
     },
-    async revokeKey(_id: string): Promise<void> {
-        await new Promise(resolve => setTimeout(resolve, 500));
+    async revokeKey(id: string): Promise<void> {
+        try {
+            await api.delete(`/developer/keys/${id}`);
+        } catch (error) {
+            console.error('Erro ao revogar chave de API', error);
+        }
     }
 };

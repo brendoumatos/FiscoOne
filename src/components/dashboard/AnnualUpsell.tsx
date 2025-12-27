@@ -2,18 +2,17 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2, ShieldCheck, Zap } from "lucide-react";
 import api from "@/services/api";
-import { useSubscription } from "@/contexts/SubscriptionContext";
+import { usePlanState } from "@/contexts/PlanStateContext";
 
 export function AnnualUpsell() {
-    const { refresh } = useSubscription();
+    const { refresh } = usePlanState();
 
     const handleUpgrade = async () => {
         if (confirm("Deseja simular o upgrade para o plano PRO ANUAL e ganhar os benefícios?")) {
             try {
                 await api.post('/subscriptions/upgrade', { planCode: 'PRO', cycle: 'ANNUAL' });
                 alert("Plano Atualizado! Créditos adicionados à sua carteira.");
-                refresh();
-                window.location.reload(); // To refresh credits view
+                await refresh();
             } catch (e) {
                 alert("Erro ao atualizar plano.");
             }

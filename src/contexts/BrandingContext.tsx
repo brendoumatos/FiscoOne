@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { accountantService, type BrandingSettings } from '@/services/accountant';
+import { accountantService } from '@/services/accountant';
+import type { BrandingSettings } from '@/services/accountant';
 
 interface BrandingContextType {
     branding: BrandingSettings | null;
@@ -26,11 +27,9 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
             }
 
             const data = await accountantService.getPublicBranding(domain);
-            if (data && !data.isDefault) {
+            if (data) {
                 setBranding(data);
-                // Apply CSS Variables dynamically
                 document.documentElement.style.setProperty('--primary', data.primary_color);
-                // We might need to handle HSL conversion if using Tailwind's variable system fully
             }
             setIsLoading(false);
         };

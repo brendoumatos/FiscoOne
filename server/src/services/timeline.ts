@@ -27,12 +27,14 @@ export const timelineService = {
         let query = `SELECT * FROM fiscal_timeline_events WHERE company_id = $1`;
         const params: any[] = [companyId];
 
+        const safeLimit = Math.max(1, Math.min(Number(limit) || 20, 100));
+
         if (type) {
             query += ` AND type = $2`;
             params.push(type);
         }
 
-        query += ` ORDER BY created_at DESC LIMIT ${limit}`; // Simple concatenation for limit is safe if number
+        query += ` ORDER BY created_at DESC OFFSET 0 ROWS FETCH NEXT ${safeLimit} ROWS ONLY`;
 
         const result = await pool.query(query, params);
 

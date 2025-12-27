@@ -5,12 +5,12 @@ import { Button } from "@/components/ui/button";
 
 interface UsageWidgetProps {
     current: number;
-    limit: number;
+    limit: number | null;
     planName: string;
 }
 
 export function UsageWidget({ current, limit, planName }: UsageWidgetProps) {
-    const isUnlimited = limit === -1;
+    const isUnlimited = limit === null || limit === -1;
     const percent = isUnlimited ? 0 : Math.min(100, (current / limit) * 100);
 
     return (

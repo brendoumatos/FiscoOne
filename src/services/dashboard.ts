@@ -3,16 +3,27 @@ import type { DashboardStats, ActivityItem } from "@/types/dashboard";
 
 export const dashboardService = {
     getStats: async (): Promise<DashboardStats> => {
-        const response = await api.get('/dashboard/stats');
+        const response = await api.get('/dashboard/summary');
         return response.data;
     },
 
     getRecentActivity: async (): Promise<ActivityItem[]> => {
-        // Still mock activity for now or implement endpoint
-        return [
-            { id: '1', type: 'INVOICE', description: 'Invoice #0012 issued to Client A', timestamp: new Date().toISOString() },
-            { id: '2', type: 'TAX', description: 'DAS generated for December', timestamp: new Date(Date.now() - 86400000).toISOString() },
-            { id: '3', type: 'SYSTEM', description: 'Company profile updated', timestamp: new Date(Date.now() - 172800000).toISOString() },
-        ];
+        const response = await api.get('/timeline');
+        const events = response.data as Array<{ id: string; type: string; title: string; description?: string; createdAt: string }>;
+        return events.map((event) => {
+            const normalizedType = (() => {
+                const t = event.type?.toUpperCase?.();
+                if (t === 'INVOICE') return 'INVOICE' as const;
+                if (t === 'TAX') return 'TAX' as const;
+                return 'SYSTEM' as const;
+            })();
+
+            return {
+                id: event.id,
+                type: normalizedType,
+                description: event.description || event.title,
+                timestamp: event.createdAt
+            } satisfies ActivityItem;
+        });
     }
 };

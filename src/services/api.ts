@@ -32,6 +32,22 @@ api.interceptors.response.use(
             // Optional: Redirect to login or trigger global logout event
             // window.location.href = '/auth/login'; // Simple force redirect
         }
+        if (error.response?.status === 403 && error.response?.data?.error === 'PLAN_BLOCKED') {
+            try {
+                const detail = error.response.data;
+                window.dispatchEvent(new CustomEvent('plan-blocked', { detail }));
+            } catch (e) {
+                // no-op
+            }
+        }
+        if (error.response?.status === 403 && (error.response?.data?.error === 'DEMO_MODE' || error.response?.data?.error === 'DEMO_READ_ONLY')) {
+            try {
+                const detail = error.response.data;
+                window.dispatchEvent(new CustomEvent('demo-readonly', { detail }));
+            } catch (e) {
+                // no-op
+            }
+        }
         return Promise.reject(error);
     }
 );

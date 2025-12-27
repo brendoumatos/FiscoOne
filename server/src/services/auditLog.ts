@@ -25,6 +25,7 @@ export interface AuditEvent {
     beforeState?: any;
     afterState?: any;
     req: AuthRequest; // Context source
+    impersonationSessionId?: string;
 }
 
 export const auditLogService = {
@@ -54,8 +55,8 @@ export const auditLogService = {
             `INSERT INTO audit_logs 
             (company_id, actor_user_id, actor_type, actor_accounting_firm_id, 
              action, entity_type, entity_id, before_state, after_state, 
-             ip_address, user_agent)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+             ip_address, user_agent, impersonation_session_id)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
             [
                 context.companyId,
                 user.id,
@@ -67,7 +68,8 @@ export const auditLogService = {
                 beforeState ? JSON.stringify(beforeState) : null,
                 afterState ? JSON.stringify(afterState) : null,
                 ipAddress,
-                userAgent
+                userAgent,
+                (req as any).impersonationSessionId || (event.impersonationSessionId ?? null)
             ]
         );
     },
@@ -82,7 +84,7 @@ export const auditLogService = {
              JOIN users u ON al.actor_user_id = u.id
              WHERE al.company_id = $1
              ORDER BY al.created_at DESC
-             LIMIT $2`,
+             OFFSET 0 ROWS FETCH NEXT $2 ROWS ONLY`,
             [companyId, limit]
         );
         return result.rows;

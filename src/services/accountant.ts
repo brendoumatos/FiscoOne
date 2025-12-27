@@ -8,8 +8,18 @@ export interface BrandingSettings {
     isDefault?: boolean;
 }
 
+export interface AccountantClient {
+    id: string;
+    name: string;
+    cnpj: string;
+    ownerName: string;
+    taxRegime: string;
+    status: string;
+    pendingIssues: number;
+}
+
 export const accountantService = {
-    async getClients() {
+    async getClients(): Promise<AccountantClient[]> {
         // Mock implementation for build
         return [
             { id: '1', name: 'Empresa Demo', cnpj: '00.000.000/0001-91', ownerName: 'João Silva', taxRegime: 'Simples Nacional', status: 'ACTIVE', pendingIssues: 0 }

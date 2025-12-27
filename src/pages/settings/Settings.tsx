@@ -18,11 +18,14 @@ import { useTheme } from "@/contexts/ThemeContext";
 import { Moon, User } from "lucide-react";
 import { UserProfileSettings } from "@/components/settings/UserProfileSettings";
 import { PlanShield } from "@/components/common/PlanShield";
+import { usePlanState } from "@/contexts/PlanStateContext";
 
 export default function Settings() {
     const { toast } = useToast();
     const queryClient = useQueryClient();
     const [inviteEmail, setInviteEmail] = useState("");
+
+    const { data: planState, usage, limits, status, cta, isLoading: isPlanLoading } = usePlanState();
 
     // Team Queries
     const { data: members } = useQuery({
@@ -53,13 +56,39 @@ export default function Settings() {
         }
     });
 
-    // Usage Mock
-    const usage = {
-        invoices: 120,
-        invoicesLimit: 500,
-        users: members?.length || 1,
-        usersLimit: 3
+    const invoicesUsed = usage?.invoices.used ?? planState?.usage.invoices.used ?? 0;
+    const invoicesLimit = limits?.invoices ?? planState?.usage.invoices.limit ?? null;
+    const seatsUsed = usage?.seats.used ?? planState?.usage.seats.used ?? 0;
+    const seatsLimit = limits?.seats ?? planState?.usage.seats.limit ?? null;
+
+    const invoicePercent = invoicesLimit ? Math.min(100, (invoicesUsed / invoicesLimit) * 100) : 0;
+    const seatPercent = seatsLimit ? Math.min(100, (seatsUsed / seatsLimit) * 100) : 0;
+    const seatBlocked = seatsLimit ? seatsUsed >= seatsLimit : false;
+
+    const statusMeta: Record<string, { label: string; className: string }> = {
+        ACTIVE: { label: "Ativo", className: "bg-emerald-100 text-emerald-700" },
+        WARNING: { label: "Atenção", className: "bg-amber-100 text-amber-700" },
+        GRACE: { label: "Pagamento pendente", className: "bg-orange-100 text-orange-700" },
+        BLOCKED: { label: "Bloqueado", className: "bg-red-100 text-red-700" },
+        EXPIRED: { label: "Expirado", className: "bg-gray-100 text-gray-600" }
     };
+
+    const CTA_LABEL: Record<string, string> = {
+        UPGRADE: "Fazer upgrade",
+        BUY_CREDITS: "Comprar créditos",
+        CONTACT_SUPPORT: "Falar com suporte"
+    };
+
+    const CTA_ROUTE: Record<string, string> = {
+        UPGRADE: "/dashboard/settings/billing",
+        BUY_CREDITS: "/dashboard/settings/billing",
+        CONTACT_SUPPORT: "/dashboard/settings/support"
+    };
+
+    const activeStatus = (status || planState?.status || 'ACTIVE').toUpperCase();
+    const statusBadge = statusMeta[activeStatus] || statusMeta.ACTIVE;
+    const ctaValue = cta || 'UPGRADE';
+    const renewalLabel = planState?.expiration ? `Renova em ${new Date(planState.expiration).toLocaleDateString()}` : "Renovação automática";
 
     return (
         <div className="space-y-6 pb-20 animate-in fade-in duration-500">
@@ -144,8 +173,11 @@ export default function Settings() {
                                         value={inviteEmail}
                                         onChange={(e) => setInviteEmail(e.target.value)}
                                     />
+                                    {seatBlocked && (
+                                        <p className="text-xs text-amber-700">Limite de assentos atingido. Faça upgrade para adicionar mais membros.</p>
+                                    )}
                                 </div>
-                                <Button onClick={() => inviteMutation.mutate(inviteEmail)} disabled={!inviteEmail || inviteMutation.isPending}>
+                                <Button onClick={() => inviteMutation.mutate(inviteEmail)} disabled={!inviteEmail || inviteMutation.isPending || seatBlocked}>
                                     <Plus className="mr-2 h-4 w-4" /> Convidar
                                 </Button>
                             </div>
@@ -292,35 +324,35 @@ export default function Settings() {
                         <CardHeader>
                             <div className="flex justify-between items-start">
                                 <div>
-                                    <CardTitle>Plano Profissional</CardTitle>
-                                    <CardDescription>Renova em 12/12/2026</CardDescription>
+                                    <CardTitle>{planState?.planCode || 'Plano'}</CardTitle>
+                                    <CardDescription>{isPlanLoading ? 'Carregando...' : renewalLabel}</CardDescription>
                                 </div>
-                                <Badge className="bg-primary text-white hover:bg-primary">Ativo</Badge>
+                                <Badge className={statusBadge.className}>{statusBadge.label}</Badge>
                             </div>
                         </CardHeader>
                         <CardContent className="space-y-6">
                             <div className="space-y-2">
                                 <div className="flex justify-between text-sm">
-                                    <span className="font-medium text-gray-700">Notas Emitidas (Mês)</span>
-                                    <span className="text-gray-500">{usage.invoices} / {usage.invoicesLimit}</span>
+                                    <span className="font-medium text-gray-700">Notas Emitidas (mês)</span>
+                                    <span className="text-gray-500">{invoicesLimit === null ? `${invoicesUsed} / ilimitado` : `${invoicesUsed} / ${invoicesLimit}`}</span>
                                 </div>
                                 <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
                                     <div
                                         className="h-full bg-primary transition-all duration-500"
-                                        style={{ width: `${(usage.invoices / usage.invoicesLimit) * 100}%` }}
+                                        style={{ width: `${invoicePercent}%` }}
                                     />
                                 </div>
                             </div>
 
                             <div className="space-y-2">
                                 <div className="flex justify-between text-sm">
-                                    <span className="font-medium text-gray-700">Usuários do Time</span>
-                                    <span className="text-gray-500">{usage.users} / {usage.usersLimit}</span>
+                                    <span className="font-medium text-gray-700">Usuários do time</span>
+                                    <span className="text-gray-500">{seatsLimit === null ? `${seatsUsed} / ilimitado` : `${seatsUsed} / ${seatsLimit}`}</span>
                                 </div>
                                 <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
                                     <div
                                         className="h-full bg-blue-500 transition-all duration-500"
-                                        style={{ width: `${(usage.users / usage.usersLimit) * 100}%` }}
+                                        style={{ width: `${seatPercent}%` }}
                                     />
                                 </div>
                             </div>
@@ -330,16 +362,35 @@ export default function Settings() {
                                     <CreditCard className="h-4 w-4 text-gray-500" />
                                     <span className="text-sm">•••• 4242</span>
                                 </div>
-                                <Button variant="outline" size="sm">Gerenciar Assinatura</Button>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                        const target = CTA_ROUTE[ctaValue] || '/dashboard/settings/billing';
+                                        window.location.href = target;
+                                    }}
+                                >
+                                    {CTA_LABEL[ctaValue] || 'Gerenciar assinatura'}
+                                </Button>
                             </div>
                         </CardContent>
                     </Card>
 
                     <div className="text-center pt-4">
-                        <p className="text-sm text-muted-foreground mb-4">Precisa de mais recursos?</p>
-                        <Button variant="default" className="bg-gradient-to-r from-blue-600 to-indigo-600 border-none shadow-lg text-white">
-                            Fazer Upgrade para Business
-                        </Button>
+                        <p className="text-sm text-muted-foreground mb-2">Precisa de mais recursos ou liberar bloqueios?</p>
+                        <div className="flex flex-col gap-2 items-center">
+                            {planState?.reason && <p className="text-xs text-amber-700 bg-amber-50 px-3 py-2 rounded-md border border-amber-100 max-w-md">{planState.reason}</p>}
+                            <Button
+                                variant="default"
+                                className="bg-gradient-to-r from-blue-600 to-indigo-600 border-none shadow-lg text-white"
+                                onClick={() => {
+                                    const target = CTA_ROUTE[ctaValue] || '/dashboard/settings/billing';
+                                    window.location.href = target;
+                                }}
+                            >
+                                {CTA_LABEL[ctaValue] || 'Fazer upgrade'}
+                            </Button>
+                        </div>
                     </div>
                 </TabsContent>
 

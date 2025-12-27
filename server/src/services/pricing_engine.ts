@@ -56,8 +56,8 @@ export const pricingEngine = {
 
         const res = await pool.query(
             `SELECT * FROM pricing_recommendations 
-             WHERE company_id = $1 AND is_dismissed = false 
-             ORDER BY created_at DESC LIMIT 1`,
+             WHERE company_id = $1 AND is_dismissed = 0 
+             ORDER BY created_at DESC OFFSET 0 ROWS FETCH NEXT 1 ROWS ONLY`,
             [companyId]
         );
         return res.rows[0];

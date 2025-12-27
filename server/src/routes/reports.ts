@@ -2,28 +2,19 @@ import { Router, Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
 import { requireRole, PERMISSIONS } from '../middleware/requireRole';
 import { protectedCompanyRouter } from '../utils/protectedCompanyRouter';
-import { subscriptionService } from '../services/subscription';
+import { sendError } from '../utils/errorCatalog';
 
 const router = protectedCompanyRouter();
 
 // Download de relatórios/arquivos fiscais (placeholder)
-router.get('/:companyId/export', requireRole(PERMISSIONS.INVOICE_READ), async (req: AuthRequest, res: Response) => {
-    const { companyId } = req.params;
+router.get('/export', requireRole(PERMISSIONS.INVOICE_READ), async (req: AuthRequest, res: Response) => {
+    const companyId = req.user?.companyId;
     try {
-        const entitlement = await subscriptionService.checkEntitlement(companyId, 'DOWNLOAD_REPORTS', { req });
-        if (!entitlement.allowed) {
-            return res.status(403).json({
-                message: entitlement.reason || 'Relatórios avançados não disponíveis neste plano.',
-                code: 'ENTITLEMENT_DENIED',
-                upgrade_suggestion: entitlement.upgrade_suggestion
-            });
-        }
-
         // Stub de retorno; substituir por arquivo/stream real
         return res.json({ message: 'Relatório pronto para download', url: '#TODO' });
     } catch (error) {
         console.error('Erro ao gerar relatório:', error);
-        return res.status(500).json({ message: 'Erro ao gerar relatório' });
+        return sendError(res, 'INTERNAL_ERROR', { reason: 'Erro ao gerar relatório' });
     }
 });
 

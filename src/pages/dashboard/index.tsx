@@ -19,29 +19,29 @@ import { PlanShield } from "@/components/common/PlanShield";
 import { UsageWidget } from "@/components/dashboard/UsageWidget";
 import { AnnualUpsell } from "@/components/dashboard/AnnualUpsell";
 import { PricingInsight } from "@/components/dashboard/PricingInsight";
-import { useSubscription } from "@/contexts/SubscriptionContext";
+import { usePlanState } from "@/contexts/PlanStateContext";
 
 export default function Dashboard() {
     const navigate = useNavigate();
     const { currentCompany } = useAuth();
-    const { data: subscription } = useSubscription();
+    const { data: planState, usage } = usePlanState();
 
     // Queries
     const { data: stats } = useQuery({
         queryKey: ['dashboard-stats', currentCompany?.id],
-        queryFn: () => dashboardService.getStats(), // Removed arg
+        queryFn: () => dashboardService.getStats(),
         enabled: !!currentCompany
     });
 
     const { data: scoreData } = useQuery({
         queryKey: ['fiscal-score', currentCompany?.id],
-        queryFn: () => currentCompany ? scoreService.getScore(currentCompany.id) : null,
+        queryFn: () => currentCompany ? scoreService.getScore() : null,
         enabled: !!currentCompany
     });
 
     const { data: readiness } = useQuery({
         queryKey: ['financial-readiness', currentCompany?.id],
-        queryFn: () => currentCompany ? readinessService.getReadiness(currentCompany.id) : null,
+        queryFn: () => currentCompany ? readinessService.getReadiness() : null,
         enabled: !!currentCompany
     });
 
@@ -51,9 +51,12 @@ export default function Dashboard() {
         { label: "Conciliar", description: "Importar extrato OFX", icon: Activity, color: "bg-emerald-500", onClick: () => navigate('/dashboard/finance') },
     ];
 
-    const usageNearLimit = subscription && subscription.plan.limit > 0
-        ? subscription.usage.invoices / subscription.plan.limit >= 0.75
-        : false;
+    const usageNearLimit = (() => {
+        if (!usage) return false;
+        const limit = usage.invoices.limit;
+        if (!limit) return false;
+        return usage.invoices.used / limit >= 0.75;
+    })();
 
     const chartData = [
         { name: 'Jan', receita: 4000, despesas: 2400 },
@@ -73,7 +76,7 @@ export default function Dashboard() {
                         <div>
                             <h2 className="text-3xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
                                 Visão Geral
-                                {subscription && <PlanBadge planCode={subscription.plan.code} planName={subscription.plan.name} />}
+                                {planState && <PlanBadge planCode={planState.plan.code} planName={planState.plan.name} />}
                             </h2>
                             <p className="text-slate-500">Bem-vindo de volta, {currentCompany?.tradeName || "Empresa"}.</p>
                         </div>
@@ -103,23 +106,23 @@ export default function Dashboard() {
                     />
                 </div>
                 <div className="md:col-span-1 space-y-6">
-                    {subscription && (
+                    {planState && usage && (
                         <UsageWidget
-                            current={subscription.usage.invoices}
-                            limit={subscription.plan.limit}
-                            planName={subscription.plan.name}
+                            current={usage.invoices.used}
+                            limit={usage.invoices.limit}
+                            planName={planState.plan.name}
                         />
                     )}
 
                     <PricingInsight />
 
-                    {usageNearLimit && (
+                    {usageNearLimit && usage && planState && (
                         <Card className="border-emerald-200 bg-emerald-50/60">
                             <CardHeader className="pb-2">
                                 <CardTitle className="text-sm text-emerald-800">Proteção quase no limite</CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-2 text-emerald-900">
-                                <p className="text-sm">Seu escudo fiscal está em {Math.round((subscription!.usage.invoices / subscription!.plan.limit) * 100)}% do limite de notas.</p>
+                                <p className="text-sm">Seu escudo fiscal está em {Math.round((usage.invoices.used / (usage.invoices.limit || 1)) * 100)}% do limite de notas.</p>
                                 <Button size="sm" onClick={() => navigate('/dashboard/settings?tab=billing')} className="bg-emerald-600 hover:bg-emerald-700 text-white">
                                     Reforçar escudo (upgrade)
                                 </Button>
@@ -141,7 +144,7 @@ export default function Dashboard() {
             {/* Metrics Cards ... */}
 
             {/* Annual Plan Upsell */}
-            {!subscription?.plan.cycle || subscription.plan.cycle === 'MONTHLY' ? (
+            {!planState?.plan.priceYearly ? (
                 <div className="mb-6">
                     <AnnualUpsell />
                 </div>

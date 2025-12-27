@@ -2,24 +2,15 @@ import { Router, Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
 import { requireRole, PERMISSIONS } from '../middleware/requireRole';
 import { protectedCompanyRouter } from '../utils/protectedCompanyRouter';
-import { subscriptionService } from '../services/subscription';
 import { auditLogService } from '../services/auditLog';
+import { sendError } from '../utils/errorCatalog';
 
 const router = protectedCompanyRouter();
 
 // Cria ou agenda recorrência de faturamento (placeholder lógico)
-router.post('/:companyId/schedules', requireRole(PERMISSIONS.INVOICE_WRITE), async (req: AuthRequest, res: Response) => {
-    const { companyId } = req.params;
+router.post('/schedules', requireRole(PERMISSIONS.INVOICE_WRITE), async (req: AuthRequest, res: Response) => {
+    const companyId = req.user?.companyId;
     try {
-        const entitlement = await subscriptionService.checkEntitlement(companyId, 'ENABLE_RECURRENCE', { req });
-        if (!entitlement.allowed) {
-            return res.status(403).json({
-                message: entitlement.reason || 'Recorrência não disponível neste plano.',
-                code: 'ENTITLEMENT_DENIED',
-                upgrade_suggestion: entitlement.upgrade_suggestion
-            });
-        }
-
         // Aqui integrar lógica real de criação da recorrência
         const payload = req.body;
 
@@ -35,27 +26,18 @@ router.post('/:companyId/schedules', requireRole(PERMISSIONS.INVOICE_WRITE), asy
         return res.status(201).json({ message: 'Recorrência agendada', recurrence: payload });
     } catch (error) {
         console.error('Erro em recorrência:', error);
-        return res.status(500).json({ message: 'Erro ao criar recorrência' });
+        return sendError(res, 'INTERNAL_ERROR', { reason: 'Erro ao criar recorrência' });
     }
 });
 
 // Lista recorrências existentes (stub)
-router.get('/:companyId/schedules', requireRole(PERMISSIONS.INVOICE_READ), async (req: AuthRequest, res: Response) => {
-    const { companyId } = req.params;
+router.get('/schedules', requireRole(PERMISSIONS.INVOICE_READ), async (req: AuthRequest, res: Response) => {
+    const companyId = req.user?.companyId;
     try {
-        const entitlement = await subscriptionService.checkEntitlement(companyId, 'ENABLE_RECURRENCE', { req });
-        if (!entitlement.allowed) {
-            return res.status(403).json({
-                message: entitlement.reason || 'Recorrência não disponível neste plano.',
-                code: 'ENTITLEMENT_DENIED',
-                upgrade_suggestion: entitlement.upgrade_suggestion
-            });
-        }
-
         return res.json({ items: [] });
     } catch (error) {
         console.error('Erro ao listar recorrências:', error);
-        return res.status(500).json({ message: 'Erro interno' });
+        return sendError(res, 'INTERNAL_ERROR', { reason: 'Erro interno' });
     }
 });
 

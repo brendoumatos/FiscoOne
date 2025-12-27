@@ -11,9 +11,19 @@ import { useToast } from "@/hooks/use-toast";
 
 export default function ClientsList() {
     const { toast } = useToast();
-    const { data: clients, isLoading } = useQuery({
+    type Client = {
+        id: string;
+        name: string;
+        cnpj: string;
+        ownerName: string;
+        taxRegime: string;
+        status: string;
+        pendingIssues: number;
+    };
+
+    const { data: clients = [], isLoading } = useQuery<Client[]>({
         queryKey: ['accountant-clients'],
-        queryFn: accountantService.getClients
+        queryFn: () => accountantService.getClients()
     });
 
     return (
@@ -49,7 +59,7 @@ export default function ClientsList() {
                                 <TableRow>
                                     <TableCell colSpan={5} className="text-center h-24">Carregando...</TableCell>
                                 </TableRow>
-                            ) : clients?.map((client) => (
+                            ) : clients.map((client) => (
                                 <TableRow key={client.id} className="hover:bg-gray-50/50">
                                     <TableCell>
                                         <div className="font-medium">{client.name}</div>

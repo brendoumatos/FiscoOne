@@ -7,13 +7,13 @@ export interface FiscalScore {
 }
 
 export const scoreService = {
-    async getScore(companyId: string): Promise<FiscalScore> {
-        const response = await api.get(`/score/${companyId}/score`);
+    async getScore(): Promise<FiscalScore> {
+        const response = await api.get('/score/score');
         return response.data;
     },
 
-    async recalculate(companyId: string): Promise<FiscalScore> {
-        const response = await api.post(`/score/${companyId}/score/recalculate`);
+    async recalculate(): Promise<FiscalScore> {
+        const response = await api.post('/score/score/recalculate');
         return response.data;
     }
 };
